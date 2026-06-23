@@ -1,0 +1,2039 @@
+{
+  "name": "Automated Decision Support System",
+  "nodes": [
+    {
+      "parameters": {
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.chatTrigger",
+      "typeVersion": 1.4,
+      "position": [
+        -272,
+        -416
+      ],
+      "id": "1e206d48-2fde-496b-8cc3-d0ef04efd0c1",
+      "name": "When chat message received",
+      "webhookId": "903ab748-d04b-41b5-bbac-2f6f5d483989"
+    },
+    {
+      "parameters": {
+        "hasOutputParser": true,
+        "options": {
+          "systemMessage": "=You are a dedicated tool for accurately extracting data and converting it to JSON format only.\n\nAnalyze the user message and extract the required table values ​​within direct JSON code without using explanatory quotes (```json).\n\nأضف هذه الأسطر إلى نهاية الـ Prompt الخاص بالـ AI Agent:\n\nيجب أن تكون قيم كل من (Impact, Trust, Ease of use) عبارة عن نصوص واضحة بدلاً من الأرقام، وذلك بناءً على التقييم التالي:\n\nإذا كان التقييم (1-2) يتم كتابته: \"منخفض\" (أو \"صعب\" لـ Ease of use).\n\nإذا كان التقييم (3) يتم كتابته: \"متوسط\".\n\nإذا كان التقييم (4-5) يتم كتابته: \"عالي\" (أو \"سهل\" لـ Ease of use).\n\nبالنسبة لحقل الـ Priority، فيتم استبداله بحقل نصي اسمه Priority (الأولوية) يعتمد على المجموع كالتالي:\n\nمجموع (من 3 إلى 7) -> يتم كتابته: \"أولوية منخفضة\".\n\nمجموع (من 8 إلى 11) -> يتم كتابته: \"أولوية متوسطة\".\n\nمجموع (من 12 إلى 15) -> يتم كتابته: \"أولوية قصوى\".\n\nبالنسبة لحقل الـ Classification (تصنيف القرار):\n\nقم بتحديد تصنيف القرار بشكل نصي مباشر وواضح يصف طبيعة القرار (مثال: \"مهني أكاديمي\"، \"استراتيجي\"، \"شخصي\"، \"مالي\"، \"تطويري\") بناءً على محتوى القرار المقترح وسياقه.\n\nتعديل خطة العمل (Action Plan):\n\n\"توليد 3 خطوات عملية متتالية وفورية... على أن يتم كتابتها كنص عادي مسبوق بنقاط (مثال: - الخطوة الأولى \\n - الخطوة الثانية) وليس على شكل مصفوفة أو مخرجات JSON.\"\n\nتعديل تحليل المخاطر (Risk & Mitigations):\n\n\"تحديد عقبة واحدة محتملة... ويتم صياغة الخطر والحل على شكل نقاط نصية واضحة ومباشرة (مثال: - الخطر: ... \\n - الحل: ...) بدلاً من صياغتها كمصفوفة نصوص أو كائن جيسون داخلي.\"\n\nالمدى الزمني (Timeframe):\n\nتحديد تصنيف زمني لتنفيذ القرار (مثلاً: \"قصير المدى\"، \"متوسط المدى\"، \"طويل المدى\").\n\nTimestamp:\nيجب ان يكون فقط تاريخ اليوم و شهر و سنة فقط\n\nتأكد من إرسال جميع هذه القيم النصية الجديدة داخل كود الـ JSON مباشرة بنفس أسماء الحقول المذكورة.\n\nYou are a decision support chat assistant. Your main goal is to help the user retrieve data from specific categories.\n\nAt the very beginning of the interaction, or if the user asks for options, you MUST present the user with these 4 clear choices verbatim:\n1. Metadata & Context\n2. Quantitative Scoring\n3. Qualitative Analysis & Diagnosis\n4. Execution & Recommendation\n\nWhen the user selects an option (either by typing its name or number), you must use the corresponding Google Sheets tool to fetch the rows from that specific sheet ONLY. Do not make up any data; only output what is returned by the tool in a clean, human-readable format.\n\nCRITICAL INSTRUCTION: You MUST respond ONLY with a valid JSON object matching the provided schema. \nDo NOT include any conversational filler, introductory text, markdown code blocks (like ```json), or trailing commentary. \nYour entire response must start with '{' and end with '}'.\n\nYou are an expert decision support agent. Analyze the user request, fill the required output parser schema fields, AND dynamically create a beautiful, highly formatted text summary in Arabic for the chat response. \n\nInside the schema, make sure to write a clean markdown summary in the \"Commentary\" or \"Recommendation\" field so the user can read the final decision nicely in the chat without seeing any raw JSON brackets.\n\nCRITICAL: You must fill all the schema fields for the tables. Additionally, you MUST fill the \"message\" field with a beautifully formatted Markdown summary in Arabic. \nInside the \"message\" string, use headings (##), bullet points (*), and bold text (**) to present the decision, action plan, and recommendation clearly to the user. Do NOT include raw JSON syntax or brackets inside the \"message\" field itself.\n\n\nCritical Instruction for Output Formatting:\nWhen the user requests an email, do NOT provide or invent an email address in the email_target field. Instead, map the user's intent strictly to one of these keywords:\n\nIf they want metadata/context -> write exactly: \"metadata\"\n\nIf they want scoring/grades -> write exactly: \"scoring\"\n\nIf they want analysis/commentary -> write exactly: \"analysis\"\n\nIf they want execution/recommendations -> write exactly: \"recommendation\"\n\nIf they want everything sent -> write exactly: \"all\"\n\nIf they just asked a regular question without mentioning email -> write exactly: \"none\"\n\n💡 Handling Deletion Requests:\n- If the user asks to delete a specific decision by ID, set \"action_type\": \"delete\" and put the ID in \"target_decision_id\".\n- If the user asks to delete the LAST decision (e.g., \"احذف آخر قرار\"), set \"action_type\": \"delete\" and set \"target_decision_id\": \"LAST\".\n\n\nCRITICAL FOR ID: The 'ID' field inside 'Metadata_Context' MUST be a pure integer number (e.g., 102543). Never include letters, dashes, or symbols like 'ID-01'.\n\n\n💡 Advanced Deletion Reasoning:\n- When the user wants to delete something, carefully analyze their text to extract what they are referring to.\n- Example 1: \"شيل قرار السفر لتركيا\" -> set \"action_type\": \"delete\" and \"delete_search_term\": \"السفر لتركيا\".\n- Example 2: \"امسح آخر شيء ضفناه\" -> set \"action_type\": \"delete\" and \"delete_search_term\": \"LAST\".\n- Example 3: \"بدي الغي قرار الاستقالة\" -> set \"action_type\": \"delete\" and \"delete_search_term\": \"الاستقالة\"."
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 3.1,
+      "position": [
+        -48,
+        -416
+      ],
+      "id": "6b91366f-7627-4178-a11d-73799b5a569b",
+      "name": "AI Agent",
+      "alwaysOutputData": false
+    },
+    {
+      "parameters": {
+        "contextWindowLength": 1
+      },
+      "type": "@n8n/n8n-nodes-langchain.memoryBufferWindow",
+      "typeVersion": 1.4,
+      "position": [
+        -96,
+        -224
+      ],
+      "id": "c1abf3bb-25fd-4d98-80fb-8664287a15d1",
+      "name": "Simple Memory"
+    },
+    {
+      "parameters": {
+        "modelName": "models/gemini-flash-lite-latest",
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatGoogleGemini",
+      "typeVersion": 1.1,
+      "position": [
+        -208,
+        -240
+      ],
+      "id": "39f91623-699a-49b4-a882-388b9000d703",
+      "name": "Google Gemini Chat Model1",
+      "credentials": {
+        "googlePalmApi": {
+          "id": "5bQnUFfdkzbJs3Ln",
+          "name": "Google Gemini(PaLM) Api account 2"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "documentId": {
+          "__rl": true,
+          "value": "1PxNA1-3gD350MTcTtqd5uViJ8SO0uX-WwnIigjleUZw",
+          "mode": "list",
+          "cachedResultName": "Automated Decision Support System",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1PxNA1-3gD350MTcTtqd5uViJ8SO0uX-WwnIigjleUZw/edit?usp=drivesdk"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "gid=0",
+          "mode": "list",
+          "cachedResultName": "Metadata & Context",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1PxNA1-3gD350MTcTtqd5uViJ8SO0uX-WwnIigjleUZw/edit#gid=0"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheetsTool",
+      "typeVersion": 4.7,
+      "position": [
+        -160,
+        144
+      ],
+      "id": "1159b2d6-2cfe-4655-9c86-37f9ab29e6ea",
+      "name": "Get row(s) in sheet in Google Sheets",
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "qPcYFvcEFGVnuJDH",
+          "name": "Google Sheets account 2"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "documentId": {
+          "__rl": true,
+          "value": "1PxNA1-3gD350MTcTtqd5uViJ8SO0uX-WwnIigjleUZw",
+          "mode": "list",
+          "cachedResultName": "Automated Decision Support System",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1PxNA1-3gD350MTcTtqd5uViJ8SO0uX-WwnIigjleUZw/edit?usp=drivesdk"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": 651189005,
+          "mode": "list",
+          "cachedResultName": "Execution & Recommendation",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1PxNA1-3gD350MTcTtqd5uViJ8SO0uX-WwnIigjleUZw/edit#gid=651189005"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheetsTool",
+      "typeVersion": 4.7,
+      "position": [
+        -48,
+        144
+      ],
+      "id": "1f47cec6-8b41-4bf6-9eb1-e29818bcc2b4",
+      "name": "Get row(s) in sheet in Google Sheets1",
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "qPcYFvcEFGVnuJDH",
+          "name": "Google Sheets account 2"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "descriptionType": "manual",
+        "toolDescription": "Use this tool to save and append the core metadata, decision text, and context of the strategic choices into the Google Sheet.",
+        "documentId": {
+          "__rl": true,
+          "value": "1PxNA1-3gD350MTcTtqd5uViJ8SO0uX-WwnIigjleUZw",
+          "mode": "list",
+          "cachedResultName": "Automated Decision Support System",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1PxNA1-3gD350MTcTtqd5uViJ8SO0uX-WwnIigjleUZw/edit?usp=drivesdk"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": 651189005,
+          "mode": "list",
+          "cachedResultName": "Execution & Recommendation",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1PxNA1-3gD350MTcTtqd5uViJ8SO0uX-WwnIigjleUZw/edit#gid=651189005"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheetsTool",
+      "typeVersion": 4.7,
+      "position": [
+        64,
+        144
+      ],
+      "id": "008efbfd-b18e-4c0c-8c4e-dd1c868b379b",
+      "name": "Get row(s) in sheet in Google Sheets2",
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "qPcYFvcEFGVnuJDH",
+          "name": "Google Sheets account 2"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "documentId": {
+          "__rl": true,
+          "value": "1PxNA1-3gD350MTcTtqd5uViJ8SO0uX-WwnIigjleUZw",
+          "mode": "list",
+          "cachedResultName": "Automated Decision Support System",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1PxNA1-3gD350MTcTtqd5uViJ8SO0uX-WwnIigjleUZw/edit?usp=drivesdk"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": 1917721808,
+          "mode": "list",
+          "cachedResultName": "Qualitative Analysis & Diagnosis",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1PxNA1-3gD350MTcTtqd5uViJ8SO0uX-WwnIigjleUZw/edit#gid=1917721808"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheetsTool",
+      "typeVersion": 4.7,
+      "position": [
+        176,
+        144
+      ],
+      "id": "01dd8ca1-68e0-45e8-9b85-98ced990cc9c",
+      "name": "Get row(s) in sheet in Google Sheets3",
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "qPcYFvcEFGVnuJDH",
+          "name": "Google Sheets account 2"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatGoogleGemini",
+      "typeVersion": 1.1,
+      "position": [
+        240,
+        -32
+      ],
+      "id": "0aec9a26-c961-4022-adaf-2a0bbf573ad8",
+      "name": "Google Gemini Chat Model",
+      "credentials": {
+        "googlePalmApi": {
+          "id": "5bQnUFfdkzbJs3Ln",
+          "name": "Google Gemini(PaLM) Api account 2"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// 1. جلب البيانات القادمة من الـ AI Agent\nconst inputData = $input.item.json;\n\n// التحقق الرئيسي لمنع توقف السير والتأكد من وجود حقل output\nif (inputData && inputData.output) {\n    const data = inputData.output;\n\n    // 2. [صمام الأمان]: استخراج وتصفية القيمة القادمة من الـ Agent بعد تعريف data\n    let rawTarget = (data.email_target || \"\").toLowerCase();\n    let finalTarget = \"none\";\n// جلب قيم الحذف من الـ Agent\n    // جلب قيم الحذف من الـ Agent\n    // 1. التأكد من تحويل الـ ID الخاص بالإضافة إلى رقم صحيح صافي\n    if (data.Metadata_Context && data.Metadata_Context.ID) {\n        let parsedId = parseInt(data.Metadata_Context.ID.toString().replace(/\\D/g, ''), 10);\n        data.Metadata_Context.ID = isNaN(parsedId) ? Math.floor(100000 + Math.random() * 900000) : parsedId;\n    }\n    \n    // 2. صمام أمان لمعالجة طلبات الحذف واستنتاج الهدف\n    let rawAction = (data.action_type || \"create\").toLowerCase();\n    let deleteTarget = (data.delete_search_term || data.target_decision_id || \"none\").toString().trim();\n    \n    if (rawAction === \"delete\") {\n        if (deleteTarget.toUpperCase().includes(\"LAST\") || deleteTarget.includes(\"آخر\") || deleteTarget.includes(\"اخر\")) {\n            deleteTarget = \"LAST\";\n        }\n    }\n    if (rawTarget.includes(\"metadata\") || rawTarget.includes(\"context\") || rawTarget.includes(\"قرار\")) {\n        finalTarget = \"metadata\";\n    } else if (rawTarget.includes(\"scoring\") || rawTarget.includes(\"درج\") || rawTarget.includes(\"تقييم\")) {\n        finalTarget = \"scoring\";\n    } else if (rawTarget.includes(\"analysis\") || rawTarget.includes(\"تحليل\") || rawTarget.includes(\"تشخيص\")) {\n        finalTarget = \"analysis\";\n    } else if (rawTarget.includes(\"recommend\") || rawTarget.includes(\"توصي\") || rawTarget.includes(\"خطة\")) {\n        finalTarget = \"recommendation\";\n    } else if (rawTarget.includes(\"all\") || rawTarget.includes(\"كل\") || rawTarget.includes(\"الكامل\")) {\n        finalTarget = \"all\";\n    } else if (rawTarget !== \"none\" && rawTarget.includes(\"@\")) {\n        // إذا كتب الـ Agent بريداً إلكترونياً بالخطأ، نعتبر تلقائياً أنه يريد إرسال التقرير كاملاً\n        finalTarget = \"all\";\n    }\n\n    // 3. بناء رسالة نصية منسقة ومنظمة لعرضها في الشات بناءً على البيانات المستخرجة\n    const formattedMessage = `\n## 🧠 قرار: ${data.Metadata_Context?.Decision || 'غير محدد'}\n---\n📊 **البيانات التعريفية والتقييم:**\n* **نوع القرار:** ${data.Metadata_Context?.Decision_Classification || '-'}\n* **معرّف القرار (ID):** ${data.Metadata_Context?.ID || '-'}\n* **التقييم الكمي الإجمالي:** ${data.Quantitative_Scoring?.Total_Score || '0'} من 14\n\n📋 **خطة العمل التنفيذية (Action Plan):**\n${data.Execution_Recommendation?.Action_Plan || '-'}\n\n⚠️ **إدارة المخاطر والحلول البديلة:**\n${data.Execution_Recommendation?.Risk_Mitigations || '-'}\n\n💡 **التوصية النهائية:**\n${data.Execution_Recommendation?.Recommendation || '-'}\n`.trim();\n\n    // 4. إرجاع البيانات مجهزة ومقسمة للأقسام الأصلية للجداول والإيميل\n    return [{\n        json: {\n            Metadata_Context: data.Metadata_Context,\n            Quantitative_Scoring: data.Quantitative_Scoring,\n            Qualitative_Analysis_Diagnosis: data.Qualitative_Analysis,\n            Execution_Recommendation: data.Execution_Recommendation,\n            message: formattedMessage,\n            is_status_message: false,\n            send_email_target: finalTarget,\n            action_type: rawAction,\n            delete_target: deleteTarget// هذا الحقل سيحتوي على الكلمة المستنتجة (مثل: السفر، الشغل، أو LAST)تمرير القيمة المصفاة بنجاح\n        }\n    }];\n\n} else {\n    // في حال أرسل البوت نصاً عادياً أو ترحيبياً دون جداول بيانات\n    return [{\n        json: {\n            message: inputData.output || \",لم يتم استخراج بيانات محددة.\",\n            is_status_message: true\n        }\n    }];\n}"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        336,
+        -416
+      ],
+      "id": "9351e718-6c31-4759-bfab-2ccecbe155ae",
+      "name": "Code in JavaScript"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose",
+            "version": 3
+          },
+          "conditions": [
+            {
+              "id": "952124db-fba5-485f-b5fc-152c7a81742b",
+              "leftValue": "={{ $json.message }}",
+              "rightValue": "Is Not True",
+              "operator": {
+                "type": "boolean",
+                "operation": "notEmpty",
+                "singleValue": true
+              }
+            },
+            {
+              "id": "ced4d96d-e327-49cf-bdde-c98429ba5c83",
+              "leftValue": "={{ $json.send_email }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "notEquals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "looseTypeValidation": true,
+        "options": {}
+      },
+      "type": "n8n-nodes-base.filter",
+      "typeVersion": 2.3,
+      "position": [
+        1312,
+        -1136
+      ],
+      "id": "1abb7d29-5b25-46ae-8fbd-46b59ff0966c",
+      "name": "Filter"
+    },
+    {
+      "parameters": {
+        "schemaType": "manual",
+        "inputSchema": "{\n  \"type\": \"object\",\n  \"properties\": {\n    \"Metadata_Context\": {\n      \"type\": \"object\",\n      \"properties\": {\n        \"ID\": { \"type\": \"integer\" },\n        \"Decision\": { \"type\": \"string\" },\n        \"Timestamp\": { \"type\": \"string\" },\n        \"Decision_Classification\": { \"type\": \"string\" }\n      },\n      \"required\": [\"ID\", \"Decision\", \"Timestamp\", \"Decision_Classification\"]\n    },\n    \"Quantitative_Scoring\": {\n      \"type\": \"object\",\n      \"properties\": {\n        \"ID\": { \"type\": \"integer\" },\n        \"Financial_Score\": { \"type\": \"number\" },\n        \"Time_Score\": { \"type\": \"number\" },\n        \"Wellbeing_Score\": { \"type\": \"number\" },\n        \"Relationships_Score\": { \"type\": \"number\" },\n        \"Risks_Score\": { \"type\": \"number\" },\n        \"Opportunity_Cost_Score\": { \"type\": \"number\" },\n        \"Total_Score\": { \"type\": \"number\" }\n      },\n      \"required\": [\"ID\", \"Financial_Score\", \"Time_Score\", \"Wellbeing_Score\", \"Relationships_Score\", \"Risks_Score\", \"Opportunity_Cost_Score\", \"Total_Score\"]\n    },\n    \"Qualitative_Analysis\": {\n      \"type\": \"object\",\n      \"properties\": {\n        \"ID\": { \"type\": \"integer\" },\n        \"Priority\": { \"type\": \"string\" },\n        \"Commentary\": { \"type\": \"string\" },\n        \"Timeframe\": { \"type\": \"string\" }\n      },\n      \"required\": [\"ID\", \"Priority\", \"Commentary\", \"Timeframe\"]\n    },\n    \"Execution_Recommendation\": {\n      \"type\": \"object\",\n      \"properties\": {\n        \"ID\": { \"type\": \"integer\" },\n        \"Action_Plan\": { \"type\": \"string\" },\n        \"Risk_Mitigations\": { \"type\": \"string\" },\n        \"Recommendation\": { \"type\": \"string\" }\n      },\n      \"required\": [\"ID\", \"Action_Plan\", \"Risk_Mitigations\", \"Recommendation\"]\n    },\n    \"email_target\": {\n  \"type\": \"string\",\n  \"description\": \"REQUIRED: Choose exactly one value from this list based on user request: 'metadata', 'scoring', 'analysis', 'recommendation', 'all', or 'none'. Do not write an email address.\"\n},\n    \"action_type\": {\n  \"type\": \"string\",\n  \"description\": \"REQUIRED: Set to 'delete' ONLY if the user explicitly asks to delete, remove, or clear a specific decision. Otherwise, always set to 'create'.\"\n},\n\"target_decision_id\": {\n  \"type\": \"string\",\n  \"description\": \"If action_type is 'delete', extract the specific Decision ID or Number the user wants to delete. If not specified or if action_type is 'create', set to 'none'.\"\n},\n    \"delete_search_term\": {\n  \"type\": \"string\",\n  \"description\": \"If action_type is 'delete', extract the core topic, name, or keywords of the decision the user wants to delete (e.g., if user says 'احذف قرار السفر', output 'السفر'). If they said 'آخر قرار', output 'LAST'. If action_type is 'create', set to 'none'.\"\n},\n    \"ID\": {\n  \"type\": \"integer\",\n  \"description\": \"REQUIRED: Generate a unique, random 6-digit integer for this decision (e.g., 482915). Never output strings, words, or patterns like DEC-2024.\"\n}\n  },\n  \"required\": [\"Metadata_Context\", \"Quantitative_Scoring\", \"Qualitative_Analysis\", \"Execution_Recommendation\", \"email_target\", \"action_type\", \"target_decision_id\"]\n}",
+        "autoFix": true
+      },
+      "type": "@n8n/n8n-nodes-langchain.outputParserStructured",
+      "typeVersion": 1.3,
+      "position": [
+        224,
+        -192
+      ],
+      "id": "d2823c05-20df-4a00-b43b-6541133d213d",
+      "name": "Structured Output Parser",
+      "alwaysOutputData": true
+    },
+    {
+      "parameters": {
+        "operation": "appendOrUpdate",
+        "documentId": {
+          "__rl": true,
+          "value": "1PxNA1-3gD350MTcTtqd5uViJ8SO0uX-WwnIigjleUZw",
+          "mode": "list",
+          "cachedResultName": "Automated Decision Support System",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1PxNA1-3gD350MTcTtqd5uViJ8SO0uX-WwnIigjleUZw/edit?usp=drivesdk"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "gid=0",
+          "mode": "list",
+          "cachedResultName": "Metadata & Context",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1PxNA1-3gD350MTcTtqd5uViJ8SO0uX-WwnIigjleUZw/edit#gid=0"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "ID": "={{ $json.Metadata_Context.ID }}",
+            "Decision": "={{ $json.Metadata_Context.Decision }}",
+            "Timestamp": "={{ $json.Metadata_Context.Timestamp }}",
+            "Decision Classification": "={{ $json.Metadata_Context.Decision_Classification }}"
+          },
+          "matchingColumns": [
+            "ID"
+          ],
+          "schema": [
+            {
+              "id": "ID",
+              "displayName": "ID",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "Decision",
+              "displayName": "Decision",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Timestamp",
+              "displayName": "Timestamp",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Decision Classification",
+              "displayName": "Decision Classification",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        1712,
+        -1456
+      ],
+      "id": "99056294-adeb-4c74-851d-a15cfb9b87f6",
+      "name": "Metadata & Context",
+      "alwaysOutputData": false,
+      "executeOnce": false,
+      "retryOnFail": false,
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "qPcYFvcEFGVnuJDH",
+          "name": "Google Sheets account 2"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "appendOrUpdate",
+        "documentId": {
+          "__rl": true,
+          "value": "1PxNA1-3gD350MTcTtqd5uViJ8SO0uX-WwnIigjleUZw",
+          "mode": "list",
+          "cachedResultName": "Automated Decision Support System",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1PxNA1-3gD350MTcTtqd5uViJ8SO0uX-WwnIigjleUZw/edit?usp=drivesdk"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": 1932691692,
+          "mode": "list",
+          "cachedResultName": "Quantitative Scoring",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1PxNA1-3gD350MTcTtqd5uViJ8SO0uX-WwnIigjleUZw/edit#gid=1932691692"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "ID": "={{ $json.Quantitative_Scoring.ID }}",
+            "Financial_Score": "={{ $json.Quantitative_Scoring.Financial_Score }}",
+            "Time_Score": "={{ $json.Quantitative_Scoring.Time_Score }}",
+            "Wellbeing_Score": "={{ $json.Quantitative_Scoring.Wellbeing_Score }}",
+            "Relationships_Score": "={{ $json.Quantitative_Scoring.Relationships_Score }}",
+            "Risks_Score": "={{ $json.Quantitative_Scoring.Risks_Score }}",
+            "Opportunity_Cost_Score": "={{ $json.Quantitative_Scoring.Opportunity_Cost_Score }}",
+            "Total_Score": "={{ $json.Quantitative_Scoring.Total_Score }}"
+          },
+          "matchingColumns": [
+            "ID"
+          ],
+          "schema": [
+            {
+              "id": "ID",
+              "displayName": "ID",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "Financial_Score",
+              "displayName": "Financial_Score",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "Time_Score",
+              "displayName": "Time_Score",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "Wellbeing_Score",
+              "displayName": "Wellbeing_Score",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "Relationships_Score",
+              "displayName": "Relationships_Score",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "Risks_Score",
+              "displayName": "Risks_Score",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "Opportunity_Cost_Score",
+              "displayName": "Opportunity_Cost_Score",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "Total_Score",
+              "displayName": "Total_Score",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        1712,
+        -1264
+      ],
+      "id": "1c2bfd54-cc30-4499-96b7-22b38103eec2",
+      "name": "Quantitative Scoring",
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "qPcYFvcEFGVnuJDH",
+          "name": "Google Sheets account 2"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "appendOrUpdate",
+        "documentId": {
+          "__rl": true,
+          "value": "1PxNA1-3gD350MTcTtqd5uViJ8SO0uX-WwnIigjleUZw",
+          "mode": "list",
+          "cachedResultName": "Automated Decision Support System",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1PxNA1-3gD350MTcTtqd5uViJ8SO0uX-WwnIigjleUZw/edit?usp=drivesdk"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": 1917721808,
+          "mode": "list",
+          "cachedResultName": "Qualitative Analysis & Diagnosis",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1PxNA1-3gD350MTcTtqd5uViJ8SO0uX-WwnIigjleUZw/edit#gid=1917721808"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "ID": "={{ $json.Qualitative_Analysis_Diagnosis.ID }}",
+            "Priority": "={{ $json.Qualitative_Analysis_Diagnosis.Priority }}",
+            "Commentary": "={{ $json.Qualitative_Analysis_Diagnosis.Commentary }}",
+            "Timeframe": "={{ $json.Qualitative_Analysis_Diagnosis.Timeframe }}"
+          },
+          "matchingColumns": [
+            "ID"
+          ],
+          "schema": [
+            {
+              "id": "ID",
+              "displayName": "ID",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "Priority",
+              "displayName": "Priority",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "Commentary",
+              "displayName": "Commentary",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "Timeframe",
+              "displayName": "Timeframe",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        1712,
+        -1104
+      ],
+      "id": "5dcde265-3fbe-487e-ba5a-bd63c69d7395",
+      "name": "Qualitative analysis & Diagnosis",
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "qPcYFvcEFGVnuJDH",
+          "name": "Google Sheets account 2"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "appendOrUpdate",
+        "documentId": {
+          "__rl": true,
+          "value": "1PxNA1-3gD350MTcTtqd5uViJ8SO0uX-WwnIigjleUZw",
+          "mode": "list",
+          "cachedResultName": "Automated Decision Support System",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1PxNA1-3gD350MTcTtqd5uViJ8SO0uX-WwnIigjleUZw/edit?usp=drivesdk"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": 651189005,
+          "mode": "list",
+          "cachedResultName": "Execution & Recommendation",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1PxNA1-3gD350MTcTtqd5uViJ8SO0uX-WwnIigjleUZw/edit#gid=651189005"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "ID": "={{ $json.Execution_Recommendation.ID }}",
+            "Action Plan": "={{ $json.Execution_Recommendation.Action_Plan }}",
+            "Risk & Mitigations": "={{ $json.Execution_Recommendation.Risk_Mitigations }}",
+            "Recommendation": "={{ $json.Execution_Recommendation.Recommendation }}"
+          },
+          "matchingColumns": [
+            "ID"
+          ],
+          "schema": [
+            {
+              "id": "ID",
+              "displayName": "ID",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "Action Plan",
+              "displayName": "Action Plan",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "Risk & Mitigations",
+              "displayName": "Risk & Mitigations",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "Recommendation",
+              "displayName": "Recommendation",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        1712,
+        -912
+      ],
+      "id": "1184be40-f07b-49f0-9d84-2a4b2b4453c9",
+      "name": "Execution & Recommendation",
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "qPcYFvcEFGVnuJDH",
+          "name": "Google Sheets account 2"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "sendTo": "moathhazeem661@gmail.com",
+        "subject": "={{ $json.Metadata_Context.Decision }}",
+        "message": "=<div style=\"font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; color: #333333; background-color: #f9f9f9; direction: rtl; border-radius: 12px; box-shadow: 0 4px 10px rgba(0,0,0,0.05);\">\n  <div style=\"text-align: center; padding-bottom: 20px; border-bottom: 2px solid #eef2f3;\">\n    <h2 style=\"color: #4A5568; margin: 0; font-size: 24px;\">📊 تقرير البيانات التعريفية</h2>\n    <p style=\"color: #718096; font-size: 14px; margin-top: 5px;\">تفاصيل سياق القرار المستخرج.</p>\n  </div>\n\n  <div style=\"margin-top: 25px; background: #ffffff; padding: 22px; border-radius: 8px; border-right: 6px solid #4F46E5; box-shadow: 0 2px 5px rgba(0,0,0,0.02);\">\n    <h3 style=\"color: #4F46E5; margin-top: 0; font-size: 19px; border-bottom: 1px solid #F3F4F6; padding-bottom: 8px;\">🔍 تفاصيل القرار والسياق (Metadata)</h3>\n    <table style=\"width: 100%; margin-top: 15px; font-size: 15px; border-collapse: collapse;\">\n      <tr style=\"background: #F9FAFB;\"><td style=\"padding: 10px; font-weight: bold; width: 30%;\">المعرف البرمجي:</td><td style=\"padding: 10px; color: #4F46E5; font-family: monospace;\">{{ $json.Metadata_Context.ID }}</td></tr>\n      <tr><td style=\"padding: 10px; font-weight: bold;\">القرار المتخذ:</td><td style=\"padding: 10px; line-height: 1.5;\">{{ $json.Metadata_Context.Decision }}</td></tr>\n      <tr style=\"background: #F9FAFB;\"><td style=\"padding: 10px; font-weight: bold;\">تاريخ التسجيل:</td><td style=\"padding: 10px;\">{{ $json.Metadata_Context.Timestamp }}</td></tr>\n      <tr><td style=\"padding: 10px; font-weight: bold;\">تصنيف القرار:</td><td style=\"padding: 10px;\"><span style=\"background: #EEF2F6; padding: 4px 10px; border-radius: 6px; font-size: 13px; color: #312E81; font-weight: bold;\">{{ $json.Metadata_Context.Decision_Classification }}</span></td></tr>\n    </table>\n  </div>\n\n  <div style=\"margin-top: 30px; text-align: center; font-size: 12px; color: #A0AEC0; border-top: 1px solid #eef2f3; padding-top: 15px;\">\n    <p style=\"margin: 0;\">هذا التقرير مخصص ومولد تلقائياً عبر نظام الأتمتة الخاص بك.</p>\n  </div>\n</div>",
+        "options": {
+          "appendAttribution": false
+        }
+      },
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.2,
+      "position": [
+        1728,
+        -704
+      ],
+      "id": "f8def338-b9d3-4e3b-8d78-9f2696b141c1",
+      "name": "Send a message",
+      "webhookId": "ff3c9f41-445a-4a65-bd70-8cf78d3fd0ec",
+      "credentials": {
+        "gmailOAuth2": {
+          "id": "9NcBOjKo4wAbWWGE",
+          "name": "Gmail account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 3
+          },
+          "conditions": [
+            {
+              "id": "791fa4a9-8b7e-49fd-9e15-7a4b3925df57",
+              "leftValue": "={{ $json.send_email_target }}",
+              "rightValue": "=True",
+              "operator": {
+                "type": "string",
+                "operation": "notEmpty",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        1104,
+        -368
+      ],
+      "id": "df07e11a-f93a-433a-82f7-1daf6273fa0e",
+      "name": "If"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 3
+          },
+          "conditions": [
+            {
+              "id": "bf35c8ab-c006-4df2-b7cf-c57f2743d720",
+              "leftValue": "={{ $json.send_email_target }}",
+              "rightValue": true,
+              "operator": {
+                "type": "string",
+                "operation": "notEmpty",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        848,
+        -752
+      ],
+      "id": "99001b91-6d6e-4ceb-96a7-5d95a4b61b2e",
+      "name": "If1"
+    },
+    {
+      "parameters": {
+        "rules": {
+          "values": [
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 3
+                },
+                "conditions": [
+                  {
+                    "leftValue": "={{ $json.send_email_target }}",
+                    "rightValue": "metadata",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    },
+                    "id": "6658ffc2-c76a-4daf-b13e-3d8e9b3ddcf4"
+                  }
+                ],
+                "combinator": "and"
+              }
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 3
+                },
+                "conditions": [
+                  {
+                    "id": "6add89c3-254c-41fa-b894-bb69d9eda48b",
+                    "leftValue": "={{ $json.send_email_target }}",
+                    "rightValue": "scoring",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              }
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 3
+                },
+                "conditions": [
+                  {
+                    "id": "99e3cb58-711e-4b9f-b010-f58e354b2b68",
+                    "leftValue": "={{ $json.send_email_target }}",
+                    "rightValue": "analysis",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              }
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 3
+                },
+                "conditions": [
+                  {
+                    "id": "8c7cb930-0bfd-466b-a87e-2c46e9fa894d",
+                    "leftValue": "={{ $json.send_email_target }}",
+                    "rightValue": "recommendation",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              }
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 3
+                },
+                "conditions": [
+                  {
+                    "id": "566f4ec9-5fa7-406a-9b93-f3478c7cb64a",
+                    "leftValue": "={{ $json.send_email_target }}",
+                    "rightValue": "all",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              }
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.switch",
+      "typeVersion": 3.4,
+      "position": [
+        1344,
+        -384
+      ],
+      "id": "30af53a0-22be-4ef7-b2f4-d7026933410a",
+      "name": "Switch"
+    },
+    {
+      "parameters": {
+        "sendTo": "moathhazeem661@gmail.com",
+        "subject": "={{ $json.Metadata_Context.Decision }}",
+        "message": "=<div style=\"font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; color: #333333; background-color: #f9f9f9; direction: rtl; border-radius: 12px; box-shadow: 0 4px 10px rgba(0,0,0,0.05);\">\n  <div style=\"text-align: center; padding-bottom: 20px; border-bottom: 2px solid #eef2f3;\">\n    <h2 style=\"color: #4A5568; margin: 0; font-size: 24px;\">📈 بطاقة التقييم الرقمي</h2>\n    <p style=\"color: #718096; font-size: 14px; margin-top: 5px;\">تحليل الدرجات والنسب المستخرجة.</p>\n  </div>\n\n  <div style=\"margin-top: 25px; background: #ffffff; padding: 22px; border-radius: 8px; border-right: 6px solid #10B981; box-shadow: 0 2px 5px rgba(0,0,0,0.02);\">\n    <h3 style=\"color: #10B981; margin-top: 0; font-size: 19px; border-bottom: 1px solid #F3F4F6; padding-bottom: 8px;\">📊 الدرجات الرقمية وحساب المؤشرات (Scoring)</h3>\n    <p style=\"font-size: 14px; color: #6B7280; margin-top: 5px;\">المعرف المرجعي: <span style=\"font-family: monospace;\">{{ $json.Quantitative_Scoring.ID }}</span></p>\n    <table style=\"width: 100%; border-collapse: collapse; margin-top: 15px; font-size: 15px;\">\n      <tr style=\"background-color: #F8FAFC;\"><td style=\"padding: 10px; border-bottom: 1px solid #E2E8F0;\">الجانب المالي (Financial)</td><td style=\"padding: 10px; text-align: left; font-weight: bold; border-bottom: 1px solid #E2E8F0; color: #10B981;\">{{ $json.Quantitative_Scoring.Financial_Score }} / 5</td></tr>\n      <tr><td style=\"padding: 10px; border-bottom: 1px solid #E2E8F0;\">إدارة الوقت (Time)</td><td style=\"padding: 10px; text-align: left; font-weight: bold; border-bottom: 1px solid #E2E8F0; color: #10B981;\">{{ $json.Quantitative_Scoring.Time_Score }} / 5</td></tr>\n      <tr style=\"background-color: #F8FAFC;\"><td style=\"padding: 10px; border-bottom: 1px solid #E2E8F0;\">الصحة النفسية (Wellbeing)</td><td style=\"padding: 10px; text-align: left; font-weight: bold; border-bottom: 1px solid #E2E8F0; color: #10B981;\">{{ $json.Quantitative_Scoring.Wellbeing_Score }} / 5</td></tr>\n      <tr><td style=\"padding: 10px; border-bottom: 1px solid #E2E8F0;\">العلاقات والاتصال (Relationships)</td><td style=\"padding: 10px; text-align: left; font-weight: bold; border-bottom: 1px solid #E2E8F0; color: #10B981;\">{{ $json.Quantitative_Scoring.Relationships_Score }} / 5</td></tr>\n      <tr style=\"background-color: #F8FAFC;\"><td style=\"padding: 10px; border-bottom: 1px solid #E2E8F0;\">مستوى المخاطر (Risks)</td><td style=\"padding: 10px; text-align: left; font-weight: bold; border-bottom: 1px solid #E2E8F0; color: #EF4444;\">{{ $json.Quantitative_Scoring.Risks_Score }} / 5</td></tr>\n      <tr><td style=\"padding: 10px; border-bottom: 1px solid #E2E8F0;\">تكلفة الفرصة البديلة (Opportunity)</td><td style=\"padding: 10px; text-align: left; font-weight: bold; border-bottom: 1px solid #E2E8F0; color: #10B981;\">{{ $json.Quantitative_Scoring.Opportunity_Cost_Score }} / 5</td></tr>\n      <tr style=\"background-color: #ECFDF5; color: #065F46; font-weight: bold; font-size: 16px;\"><td style=\"padding: 12px; border-radius: 0 0 8px 0;\">المجموع الإجمالي (Total Score)</td><td style=\"padding: 12px; text-align: left; font-size: 18px; border-radius: 8px 0 0 0;\">{{ $json.Quantitative_Scoring.Total_Score }} / 14</td></tr>\n    </table>\n  </div>\n\n  <div style=\"margin-top: 30px; text-align: center; font-size: 12px; color: #A0AEC0; border-top: 1px solid #eef2f3; padding-top: 15px;\">\n    <p style=\"margin: 0;\">هذا التقرير مخصص ومولد تلقائياً عبر نظام الأتمتة الخاص بك.</p>\n  </div>\n</div>",
+        "options": {
+          "appendAttribution": false
+        }
+      },
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.2,
+      "position": [
+        1728,
+        -480
+      ],
+      "id": "3055d6af-5287-4fee-bff2-192b0e56f5de",
+      "name": "Send a message1",
+      "webhookId": "ff3c9f41-445a-4a65-bd70-8cf78d3fd0ec",
+      "credentials": {
+        "gmailOAuth2": {
+          "id": "9NcBOjKo4wAbWWGE",
+          "name": "Gmail account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "sendTo": "moathhazeem661@gmail.com",
+        "subject": "={{ $json.Metadata_Context.Decision }}",
+        "message": "=<div style=\"font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; color: #333333; background-color: #f9f9f9; direction: rtl; border-radius: 12px; box-shadow: 0 4px 10px rgba(0,0,0,0.05);\">\n  <div style=\"text-align: center; padding-bottom: 20px; border-bottom: 2px solid #eef2f3;\">\n    <h2 style=\"color: #4A5568; margin: 0; font-size: 24px;\">🧠 نتائج التشخيص التحليلي</h2>\n    <p style=\"color: #718096; font-size: 14px; margin-top: 5px;\">التحليل النوعي والملاحظات التفصيلية للطلب.</p>\n  </div>\n\n  <div style=\"margin-top: 25px; background: #ffffff; padding: 22px; border-radius: 8px; border-right: 6px solid #3B82F6; box-shadow: 0 2px 5px rgba(0,0,0,0.02);\">\n    <h3 style=\"color: #3B82F6; margin-top: 0; font-size: 19px; border-bottom: 1px solid #F3F4F6; padding-bottom: 8px;\">📝 التحليل والتشخيص النوعي (Analysis)</h3>\n    <div style=\"margin-top: 15px; margin-bottom: 15px;\">\n      <span style=\"background: #EFF6FF; color: #1D4ED8; padding: 6px 12px; border-radius: 20px; font-size: 13px; font-weight: bold; margin-left: 10px;\">الأولوية: {{ $json.Qualitative_Analysis_Diagnosis.Priority }}</span>\n      <span style=\"background: #F3F4F6; color: #374151; padding: 6px 12px; border-radius: 20px; font-size: 13px; font-weight: bold;\">المدى الزمني: {{ $json.Qualitative_Analysis_Diagnosis.Timeframe }}</span>\n    </div>\n    <div style=\"background: #F8FAFC; padding: 16px; border-radius: 8px; border: 1px solid #E2E8F0; font-size: 14.5px; line-height: 1.7; color: #334155; white-space: pre-line;\">\n      <strong style=\"color: #1E293B; font-size: 15px;\">التعليق والتحليل المفصل:</strong><br>{{ $json.Qualitative_Analysis_Diagnosis.Commentary }}\n    </div>\n  </div>\n\n  <div style=\"margin-top: 30px; text-align: center; font-size: 12px; color: #A0AEC0; border-top: 1px solid #eef2f3; padding-top: 15px;\">\n    <p style=\"margin: 0;\">هذا التقرير مخصص ومولد تلقائياً عبر نظام الأتمتة الخاص بك.</p>\n  </div>\n</div>",
+        "options": {
+          "appendAttribution": false
+        }
+      },
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.2,
+      "position": [
+        1728,
+        -288
+      ],
+      "id": "e8b7cee7-7420-4d41-9024-4448377258a2",
+      "name": "Send a message2",
+      "webhookId": "ff3c9f41-445a-4a65-bd70-8cf78d3fd0ec",
+      "credentials": {
+        "gmailOAuth2": {
+          "id": "9NcBOjKo4wAbWWGE",
+          "name": "Gmail account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "sendTo": "moathhazeem661@gmail.com",
+        "subject": "={{ $json.Metadata_Context.Decision }}",
+        "message": "=<div style=\"font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; color: #333333; background-color: #f9f9f9; direction: rtl; border-radius: 12px; box-shadow: 0 4px 10px rgba(0,0,0,0.05);\">\n  <div style=\"text-align: center; padding-bottom: 20px; border-bottom: 2px solid #eef2f3;\">\n    <h2 style=\"color: #4A5568; margin: 0; font-size: 24px;\">💡 التوصيات وخارطة الطريق</h2>\n    <p style=\"color: #718096; font-size: 14px; margin-top: 5px;\">خطة العمل التنفيذية وإجراءات تقليل المخاطر.</p>\n  </div>\n\n  <div style=\"margin-top: 25px; background: #ffffff; padding: 22px; border-radius: 8px; border-right: 6px solid #F59E0B; box-shadow: 0 2px 5px rgba(0,0,0,0.02);\">\n    <h3 style=\"color: #F59E0B; margin-top: 0; font-size: 19px; border-bottom: 1px solid #F3F4F6; padding-bottom: 8px;\">💡 التوصيات التنفيذية</h3>\n    <div style=\"margin-top: 15px; background: #FFFBEB; padding: 15px; border-radius: 6px; border-right: 4px solid #D97706; font-size: 15px; color: #92400E; font-weight: 500;\">\n      <strong>🎯 التوصية الرئيسية:</strong> {{ $json.Execution_Recommendation.Recommendation }}\n    </div>\n    \n    <p style=\"margin: 20px 0 8px 0; font-size: 15px; color: #1E293B; font-weight: bold;\">🚀 خطة العمل الجاهزة (Action Plan):</p>\n    <div style=\"font-size: 14px; line-height: 1.6; background: #FAFAFA; padding: 14px; border-radius: 6px; border: 1px solid #E5E7EB; color: #4B5563; white-space: pre-line;\">{{ $json.Execution_Recommendation.Action_Plan }}</div>\n    \n    <p style=\"margin: 20px 0 8px 0; font-size: 15px; color: #1E293B; font-weight: bold;\">⚠️ استراتيجية تقليل المخاطر:</p>\n    <div style=\"font-size: 14px; line-height: 1.6; background: #FAF5FF; padding: 14px; border-radius: 6px; border: 1px solid #E9D5FF; color: #6B21A8; white-space: pre-line;\">{{ $json.Execution_Recommendation.Risk_Mitigations }}</div>\n  </div>\n\n  <div style=\"margin-top: 30px; text-align: center; font-size: 12px; color: #A0AEC0; border-top: 1px solid #eef2f3; padding-top: 15px;\">\n    <p style=\"margin: 0;\">هذا التقرير مخصص ومولد تلقائياً عبر نظام الأتمتة الخاص بك.</p>\n  </div>\n</div>",
+        "options": {
+          "appendAttribution": false
+        }
+      },
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.2,
+      "position": [
+        1728,
+        -112
+      ],
+      "id": "5c5af600-cd56-422b-8f67-7b041946f92b",
+      "name": "Send a message3",
+      "webhookId": "ff3c9f41-445a-4a65-bd70-8cf78d3fd0ec",
+      "credentials": {
+        "gmailOAuth2": {
+          "id": "9NcBOjKo4wAbWWGE",
+          "name": "Gmail account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "sendTo": "moathhazeem661@gmail.com",
+        "subject": "={{ $json.Metadata_Context.Decision }}",
+        "message": "=<div style=\"font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; color: #333333; background-color: #f9f9f9; direction: rtl; border-radius: 12px; box-shadow: 0 4px 10px rgba(0,0,0,0.05);\">\n  <div style=\"text-align: center; padding-bottom: 20px; border-bottom: 2px solid #eef2f3;\">\n    <h2 style=\"color: #4A5568; margin: 0; font-size: 24px;\">📋 تقرير النظام الشامل والكامل</h2>\n    <p style=\"color: #718096; font-size: 14px; margin-top: 5px;\">يتضمن كافة الأقسام والمؤشرات المتاحة في السجل.</p>\n  </div>\n\n  <!-- Section 1: Metadata -->\n  <div style=\"margin-top: 25px; background: #ffffff; padding: 22px; border-radius: 8px; border-right: 6px solid #4F46E5; box-shadow: 0 2px 5px rgba(0,0,0,0.02);\">\n    <h3 style=\"color: #4F46E5; margin-top: 0; font-size: 18px; border-bottom: 1px solid #F3F4F6; padding-bottom: 8px;\">🔍 تفاصيل القرار والسياق (Metadata)</h3>\n    <table style=\"width: 100%; margin-top: 10px; font-size: 14px; border-collapse: collapse;\">\n      <tr style=\"background: #F9FAFB;\"><td style=\"padding: 8px; font-weight: bold; width: 30%;\">المعرف:</td><td style=\"padding: 8px; color: #4F46E5; font-family: monospace;\">{{ $json.Metadata_Context.ID }}</td></tr>\n      <tr><td style=\"padding: 8px; font-weight: bold;\">القرار:</td><td style=\"padding: 8px;\">{{ $json.Metadata_Context.Decision }}</td></tr>\n      <tr style=\"background: #F9FAFB;\"><td style=\"padding: 8px; font-weight: bold;\">التصنيف:</td><td style=\"padding: 8px;\">{{ $json.Metadata_Context.Decision_Classification }}</td></tr>\n    </table>\n  </div>\n\n  <!-- Section 2: Scoring -->\n  <div style=\"margin-top: 25px; background: #ffffff; padding: 22px; border-radius: 8px; border-right: 6px solid #10B981; box-shadow: 0 2px 5px rgba(0,0,0,0.02);\">\n    <h3 style=\"color: #10B981; margin-top: 0; font-size: 18px; border-bottom: 1px solid #F3F4F6; padding-bottom: 8px;\">📊 الدرجات الرقمية (Scoring)</h3>\n    <table style=\"width: 100%; border-collapse: collapse; margin-top: 10px; font-size: 14px;\">\n      <tr><td style=\"padding: 8px; border-bottom: 1px solid #E2E8F0;\">المالي / الوقت / النفسي</td><td style=\"padding: 8px; text-align: left; font-weight: bold; color: #10B981;\">{{ $json.Quantitative_Scoring.Financial_Score }} | {{ $json.Quantitative_Scoring.Time_Score }} | {{ $json.Quantitative_Scoring.Wellbeing_Score }}</td></tr>\n      <tr style=\"background-color: #ECFDF5; font-weight: bold;\"><td style=\"padding: 10px;\">المجموع الإجمالي المؤشر</td><td style=\"padding: 10px; text-align: left; color: #065F46; font-size: 16px;\">{{ $json.Quantitative_Scoring.Total_Score }} / 14</td></tr>\n    </table>\n  </div>\n\n  <!-- Section 3: Analysis -->\n  <div style=\"margin-top: 25px; background: #ffffff; padding: 22px; border-radius: 8px; border-right: 6px solid #3B82F6; box-shadow: 0 2px 5px rgba(0,0,0,0.02);\">\n    <h3 style=\"color: #3B82F6; margin-top: 0; font-size: 18px; border-bottom: 1px solid #F3F4F6; padding-bottom: 8px;\">📝 التحليل النوعي (Analysis)</h3>\n    <p style=\"font-size: 13.5px; color: #4B5563; line-height: 1.6; white-space: pre-line; background: #F8FAFC; padding: 12px; border-radius: 6px; margin-top: 10px;\">{{ $json.Qualitative_Analysis_Diagnosis.Commentary }}</p>\n  </div>\n\n  <!-- Section 4: Recommendation -->\n  <div style=\"margin-top: 25px; background: #ffffff; padding: 22px; border-radius: 8px; border-right: 6px solid #F59E0B; box-shadow: 0 2px 5px rgba(0,0,0,0.02);\">\n    <h3 style=\"color: #F59E0B; margin-top: 0; font-size: 18px; border-bottom: 1px solid #F3F4F6; padding-bottom: 8px;\">💡 التوصيات وخطة العمل</h3>\n    <p style=\"font-size: 14px; font-weight: bold; color: #B45309; margin-top: 10px;\">🎯 التوصية الرئيسية: {{ $json.Execution_Recommendation.Recommendation }}</p>\n    <div style=\"font-size: 13px; background: #FAFAFA; padding: 10px; border-radius: 6px; border: 1px solid #E5E7EB; margin-top: 8px; white-space: pre-line;\">{{ $json.Execution_Recommendation.Action_Plan }}</div>\n  </div>\n\n  <div style=\"margin-top: 30px; text-align: center; font-size: 12px; color: #A0AEC0; border-top: 1px solid #eef2f3; padding-top: 15px;\">\n    <p style=\"margin: 0;\">هذا التقرير مخصص ومولد تلقائياً عبر نظام الأتمتة الخاص بك.</p>\n  </div>\n</div>",
+        "options": {
+          "appendAttribution": false
+        }
+      },
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.2,
+      "position": [
+        1728,
+        96
+      ],
+      "id": "cfacf8c0-f846-4a1b-86a7-741b1a853cd6",
+      "name": "Send a message4",
+      "webhookId": "ff3c9f41-445a-4a65-bd70-8cf78d3fd0ec",
+      "credentials": {
+        "gmailOAuth2": {
+          "id": "9NcBOjKo4wAbWWGE",
+          "name": "Gmail account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 3
+          },
+          "conditions": [
+            {
+              "id": "044296d7-aaad-46a2-a6e3-03fab1a37224",
+              "leftValue": "={{ $json.action_type }}",
+              "rightValue": "delete",
+              "operator": {
+                "type": "string",
+                "operation": "notEquals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        544,
+        -416
+      ],
+      "id": "aae31834-3090-402e-b59c-bf63a80be9e2",
+      "name": "If2"
+    },
+    {
+      "parameters": {
+        "operation": "delete",
+        "documentId": {
+          "__rl": true,
+          "value": "1PxNA1-3gD350MTcTtqd5uViJ8SO0uX-WwnIigjleUZw",
+          "mode": "list",
+          "cachedResultName": "Automated Decision Support System",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1PxNA1-3gD350MTcTtqd5uViJ8SO0uX-WwnIigjleUZw/edit?usp=drivesdk"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "gid=0",
+          "mode": "list",
+          "cachedResultName": "Metadata & Context",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1PxNA1-3gD350MTcTtqd5uViJ8SO0uX-WwnIigjleUZw/edit#gid=0"
+        },
+        "startIndex": "={{ $json.rowNumber }}"
+      },
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        1408,
+        288
+      ],
+      "id": "5c5d1d08-e13c-4d73-b2c1-80e6f9ed5cea",
+      "name": "Delete rows or columns from sheet",
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "qPcYFvcEFGVnuJDH",
+          "name": "Google Sheets account 2"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "delete",
+        "documentId": {
+          "__rl": true,
+          "value": "1PxNA1-3gD350MTcTtqd5uViJ8SO0uX-WwnIigjleUZw",
+          "mode": "list",
+          "cachedResultName": "Automated Decision Support System",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1PxNA1-3gD350MTcTtqd5uViJ8SO0uX-WwnIigjleUZw/edit?usp=drivesdk"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": 1932691692,
+          "mode": "list",
+          "cachedResultName": "Quantitative Scoring",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1PxNA1-3gD350MTcTtqd5uViJ8SO0uX-WwnIigjleUZw/edit#gid=1932691692"
+        },
+        "startIndex": "={{ $json.rowNumber }}"
+      },
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        1424,
+        448
+      ],
+      "id": "4b928ab6-6848-4961-af7d-8981b106338a",
+      "name": "Delete rows or columns from sheet1",
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "qPcYFvcEFGVnuJDH",
+          "name": "Google Sheets account 2"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "delete",
+        "documentId": {
+          "__rl": true,
+          "value": "1PxNA1-3gD350MTcTtqd5uViJ8SO0uX-WwnIigjleUZw",
+          "mode": "list",
+          "cachedResultName": "Automated Decision Support System",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1PxNA1-3gD350MTcTtqd5uViJ8SO0uX-WwnIigjleUZw/edit?usp=drivesdk"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": 1917721808,
+          "mode": "list",
+          "cachedResultName": "Qualitative Analysis & Diagnosis",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1PxNA1-3gD350MTcTtqd5uViJ8SO0uX-WwnIigjleUZw/edit#gid=1917721808"
+        },
+        "startIndex": "={{ $json.rowNumber }}"
+      },
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        1424,
+        656
+      ],
+      "id": "d6ff5c47-ff61-48ef-960d-766bb5e74c6c",
+      "name": "Delete rows or columns from sheet2",
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "qPcYFvcEFGVnuJDH",
+          "name": "Google Sheets account 2"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "delete",
+        "documentId": {
+          "__rl": true,
+          "value": "1PxNA1-3gD350MTcTtqd5uViJ8SO0uX-WwnIigjleUZw",
+          "mode": "list",
+          "cachedResultName": "Automated Decision Support System",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1PxNA1-3gD350MTcTtqd5uViJ8SO0uX-WwnIigjleUZw/edit?usp=drivesdk"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": 651189005,
+          "mode": "list",
+          "cachedResultName": "Execution & Recommendation",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1PxNA1-3gD350MTcTtqd5uViJ8SO0uX-WwnIigjleUZw/edit#gid=651189005"
+        },
+        "startIndex": "={{ $json.rowNumber }}"
+      },
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        1440,
+        880
+      ],
+      "id": "6d2944eb-c2df-42d6-89c8-919b03840739",
+      "name": "Delete rows or columns from sheet3",
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "qPcYFvcEFGVnuJDH",
+          "name": "Google Sheets account 2"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 3
+          },
+          "conditions": [
+            {
+              "id": "70422ec7-9197-47d4-adff-2e7dc54676a7",
+              "leftValue": "={{ $json.delete_search_term }}",
+              "rightValue": "LAST",
+              "operator": {
+                "type": "string",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        864,
+        224
+      ],
+      "id": "7e8b16f0-c51c-4619-b948-c9e4046f5552",
+      "name": "If3"
+    },
+    {
+      "parameters": {
+        "operation": "delete",
+        "documentId": {
+          "__rl": true,
+          "value": "1PxNA1-3gD350MTcTtqd5uViJ8SO0uX-WwnIigjleUZw",
+          "mode": "list",
+          "cachedResultName": "Automated Decision Support System",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1PxNA1-3gD350MTcTtqd5uViJ8SO0uX-WwnIigjleUZw/edit?usp=drivesdk"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "gid=0",
+          "mode": "list",
+          "cachedResultName": "Metadata & Context",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1PxNA1-3gD350MTcTtqd5uViJ8SO0uX-WwnIigjleUZw/edit#gid=0"
+        },
+        "startIndex": "={{ $json.rowNumber }}"
+      },
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        1424,
+        1264
+      ],
+      "id": "534ca27a-fb04-4882-b381-708622565fc7",
+      "name": "Delete rows or columns from sheet4",
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "qPcYFvcEFGVnuJDH",
+          "name": "Google Sheets account 2"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "delete",
+        "documentId": {
+          "__rl": true,
+          "value": "1PxNA1-3gD350MTcTtqd5uViJ8SO0uX-WwnIigjleUZw",
+          "mode": "list",
+          "cachedResultName": "Automated Decision Support System",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1PxNA1-3gD350MTcTtqd5uViJ8SO0uX-WwnIigjleUZw/edit?usp=drivesdk"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": 1932691692,
+          "mode": "list",
+          "cachedResultName": "Quantitative Scoring",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1PxNA1-3gD350MTcTtqd5uViJ8SO0uX-WwnIigjleUZw/edit#gid=1932691692"
+        },
+        "startIndex": "={{ $json.rowNumber }}"
+      },
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        1424,
+        1488
+      ],
+      "id": "1bcbc6e5-cf91-4308-9162-eec86fd992b4",
+      "name": "Delete rows or columns from sheet5",
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "qPcYFvcEFGVnuJDH",
+          "name": "Google Sheets account 2"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "delete",
+        "documentId": {
+          "__rl": true,
+          "value": "1PxNA1-3gD350MTcTtqd5uViJ8SO0uX-WwnIigjleUZw",
+          "mode": "list",
+          "cachedResultName": "Automated Decision Support System",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1PxNA1-3gD350MTcTtqd5uViJ8SO0uX-WwnIigjleUZw/edit?usp=drivesdk"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": 1917721808,
+          "mode": "list",
+          "cachedResultName": "Qualitative Analysis & Diagnosis",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1PxNA1-3gD350MTcTtqd5uViJ8SO0uX-WwnIigjleUZw/edit#gid=1917721808"
+        },
+        "startIndex": "={{ $json.rowNumber }}"
+      },
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        1424,
+        1664
+      ],
+      "id": "ec1926ca-4c60-4789-af8e-db8f3511ee21",
+      "name": "Delete rows or columns from sheet6",
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "qPcYFvcEFGVnuJDH",
+          "name": "Google Sheets account 2"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "delete",
+        "documentId": {
+          "__rl": true,
+          "value": "1PxNA1-3gD350MTcTtqd5uViJ8SO0uX-WwnIigjleUZw",
+          "mode": "list",
+          "cachedResultName": "Automated Decision Support System",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1PxNA1-3gD350MTcTtqd5uViJ8SO0uX-WwnIigjleUZw/edit?usp=drivesdk"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": 651189005,
+          "mode": "list",
+          "cachedResultName": "Execution & Recommendation",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1PxNA1-3gD350MTcTtqd5uViJ8SO0uX-WwnIigjleUZw/edit#gid=651189005"
+        },
+        "startIndex": "={{ $json.rowNumber }}"
+      },
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        1424,
+        1888
+      ],
+      "id": "e4771d83-053c-4153-a1d4-48a2aead746b",
+      "name": "Delete rows or columns from sheet7",
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "qPcYFvcEFGVnuJDH",
+          "name": "Google Sheets account 2"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "documentId": {
+          "__rl": true,
+          "value": "1PxNA1-3gD350MTcTtqd5uViJ8SO0uX-WwnIigjleUZw",
+          "mode": "list",
+          "cachedResultName": "Automated Decision Support System",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1PxNA1-3gD350MTcTtqd5uViJ8SO0uX-WwnIigjleUZw/edit?usp=drivesdk"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "gid=0",
+          "mode": "list",
+          "cachedResultName": "Metadata & Context",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1PxNA1-3gD350MTcTtqd5uViJ8SO0uX-WwnIigjleUZw/edit#gid=0"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        1184,
+        288
+      ],
+      "id": "974254bb-19b6-4343-b4c3-428696dde6a0",
+      "name": "Get row(s) in sheet",
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "qPcYFvcEFGVnuJDH",
+          "name": "Google Sheets account 2"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "documentId": {
+          "__rl": true,
+          "value": "1PxNA1-3gD350MTcTtqd5uViJ8SO0uX-WwnIigjleUZw",
+          "mode": "list",
+          "cachedResultName": "Automated Decision Support System",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1PxNA1-3gD350MTcTtqd5uViJ8SO0uX-WwnIigjleUZw/edit?usp=drivesdk"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "gid=0",
+          "mode": "list",
+          "cachedResultName": "Metadata & Context",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1PxNA1-3gD350MTcTtqd5uViJ8SO0uX-WwnIigjleUZw/edit#gid=0"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        1184,
+        448
+      ],
+      "id": "c12510fd-9772-42da-87e4-7517e9ebbec1",
+      "name": "Get row(s) in sheet1",
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "qPcYFvcEFGVnuJDH",
+          "name": "Google Sheets account 2"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "documentId": {
+          "__rl": true,
+          "value": "1PxNA1-3gD350MTcTtqd5uViJ8SO0uX-WwnIigjleUZw",
+          "mode": "list",
+          "cachedResultName": "Automated Decision Support System",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1PxNA1-3gD350MTcTtqd5uViJ8SO0uX-WwnIigjleUZw/edit?usp=drivesdk"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "gid=0",
+          "mode": "list",
+          "cachedResultName": "Metadata & Context",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1PxNA1-3gD350MTcTtqd5uViJ8SO0uX-WwnIigjleUZw/edit#gid=0"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        1184,
+        656
+      ],
+      "id": "02e8d6f1-755d-4585-a0d1-94a1ffd9479c",
+      "name": "Get row(s) in sheet2",
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "qPcYFvcEFGVnuJDH",
+          "name": "Google Sheets account 2"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "documentId": {
+          "__rl": true,
+          "value": "1PxNA1-3gD350MTcTtqd5uViJ8SO0uX-WwnIigjleUZw",
+          "mode": "list",
+          "cachedResultName": "Automated Decision Support System",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1PxNA1-3gD350MTcTtqd5uViJ8SO0uX-WwnIigjleUZw/edit?usp=drivesdk"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "gid=0",
+          "mode": "list",
+          "cachedResultName": "Metadata & Context",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1PxNA1-3gD350MTcTtqd5uViJ8SO0uX-WwnIigjleUZw/edit#gid=0"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        1184,
+        880
+      ],
+      "id": "f4e6d726-6bcd-4222-931b-190496ade02a",
+      "name": "Get row(s) in sheet3",
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "qPcYFvcEFGVnuJDH",
+          "name": "Google Sheets account 2"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "documentId": {
+          "__rl": true,
+          "value": "1PxNA1-3gD350MTcTtqd5uViJ8SO0uX-WwnIigjleUZw",
+          "mode": "list",
+          "cachedResultName": "Automated Decision Support System",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1PxNA1-3gD350MTcTtqd5uViJ8SO0uX-WwnIigjleUZw/edit?usp=drivesdk"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "gid=0",
+          "mode": "list",
+          "cachedResultName": "Metadata & Context",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1PxNA1-3gD350MTcTtqd5uViJ8SO0uX-WwnIigjleUZw/edit#gid=0"
+        },
+        "filtersUI": {
+          "values": [
+            {
+              "lookupColumn": "Decision",
+              "lookupValue": "={{ $json.delete_target }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        1152,
+        1296
+      ],
+      "id": "040980c1-4e02-4e5c-830f-adb197052e5d",
+      "name": "Get row(s) in sheet4",
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "qPcYFvcEFGVnuJDH",
+          "name": "Google Sheets account 2"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "documentId": {
+          "__rl": true,
+          "value": "1PxNA1-3gD350MTcTtqd5uViJ8SO0uX-WwnIigjleUZw",
+          "mode": "list",
+          "cachedResultName": "Automated Decision Support System",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1PxNA1-3gD350MTcTtqd5uViJ8SO0uX-WwnIigjleUZw/edit?usp=drivesdk"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "gid=0",
+          "mode": "list",
+          "cachedResultName": "Metadata & Context",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1PxNA1-3gD350MTcTtqd5uViJ8SO0uX-WwnIigjleUZw/edit#gid=0"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        1152,
+        1456
+      ],
+      "id": "11b0858e-55c7-407c-a6f7-c5643ca3ac38",
+      "name": "Get row(s) in sheet5",
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "qPcYFvcEFGVnuJDH",
+          "name": "Google Sheets account 2"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "documentId": {
+          "__rl": true,
+          "value": "1PxNA1-3gD350MTcTtqd5uViJ8SO0uX-WwnIigjleUZw",
+          "mode": "list",
+          "cachedResultName": "Automated Decision Support System",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1PxNA1-3gD350MTcTtqd5uViJ8SO0uX-WwnIigjleUZw/edit?usp=drivesdk"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "gid=0",
+          "mode": "list",
+          "cachedResultName": "Metadata & Context",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1PxNA1-3gD350MTcTtqd5uViJ8SO0uX-WwnIigjleUZw/edit#gid=0"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        1152,
+        1696
+      ],
+      "id": "d965c76b-2db5-422f-a0c8-9d22371612c0",
+      "name": "Get row(s) in sheet6",
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "qPcYFvcEFGVnuJDH",
+          "name": "Google Sheets account 2"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "documentId": {
+          "__rl": true,
+          "value": "1PxNA1-3gD350MTcTtqd5uViJ8SO0uX-WwnIigjleUZw",
+          "mode": "list",
+          "cachedResultName": "Automated Decision Support System",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1PxNA1-3gD350MTcTtqd5uViJ8SO0uX-WwnIigjleUZw/edit?usp=drivesdk"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "gid=0",
+          "mode": "list",
+          "cachedResultName": "Metadata & Context",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1PxNA1-3gD350MTcTtqd5uViJ8SO0uX-WwnIigjleUZw/edit#gid=0"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        1136,
+        1872
+      ],
+      "id": "f7a1675d-d130-4bfd-b266-0a25a872465a",
+      "name": "Get row(s) in sheet7",
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "qPcYFvcEFGVnuJDH",
+          "name": "Google Sheets account 2"
+        }
+      }
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "When chat message received": {
+      "main": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Simple Memory": {
+      "ai_memory": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_memory",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "AI Agent": {
+      "main": [
+        [
+          {
+            "node": "Code in JavaScript",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Google Gemini Chat Model1": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get row(s) in sheet in Google Sheets": {
+      "ai_tool": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get row(s) in sheet in Google Sheets1": {
+      "ai_tool": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get row(s) in sheet in Google Sheets2": {
+      "ai_tool": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get row(s) in sheet in Google Sheets3": {
+      "ai_tool": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Google Gemini Chat Model": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "Structured Output Parser",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code in JavaScript": {
+      "main": [
+        [
+          {
+            "node": "If2",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Filter": {
+      "main": [
+        [
+          {
+            "node": "Metadata & Context",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Quantitative Scoring",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Qualitative analysis & Diagnosis",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Execution & Recommendation",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Structured Output Parser": {
+      "ai_outputParser": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_outputParser",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Metadata & Context": {
+      "main": [
+        []
+      ]
+    },
+    "Quantitative Scoring": {
+      "main": [
+        []
+      ]
+    },
+    "Qualitative analysis & Diagnosis": {
+      "main": [
+        []
+      ]
+    },
+    "Execution & Recommendation": {
+      "main": [
+        []
+      ]
+    },
+    "If": {
+      "main": [
+        [
+          {
+            "node": "Switch",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "If1": {
+      "main": [
+        [
+          {
+            "node": "If",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Filter",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Switch": {
+      "main": [
+        [
+          {
+            "node": "Send a message",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Send a message1",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Send a message2",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Send a message3",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Send a message4",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Send a message4": {
+      "main": [
+        []
+      ]
+    },
+    "If2": {
+      "main": [
+        [
+          {
+            "node": "If1",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "If3",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "If3": {
+      "main": [
+        [
+          {
+            "node": "Get row(s) in sheet",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Get row(s) in sheet1",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Get row(s) in sheet2",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Get row(s) in sheet3",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Get row(s) in sheet4",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Get row(s) in sheet5",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Get row(s) in sheet6",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Get row(s) in sheet7",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get row(s) in sheet": {
+      "main": [
+        [
+          {
+            "node": "Delete rows or columns from sheet",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get row(s) in sheet1": {
+      "main": [
+        [
+          {
+            "node": "Delete rows or columns from sheet1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get row(s) in sheet2": {
+      "main": [
+        [
+          {
+            "node": "Delete rows or columns from sheet2",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get row(s) in sheet3": {
+      "main": [
+        [
+          {
+            "node": "Delete rows or columns from sheet3",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get row(s) in sheet4": {
+      "main": [
+        [
+          {
+            "node": "Delete rows or columns from sheet4",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get row(s) in sheet5": {
+      "main": [
+        [
+          {
+            "node": "Delete rows or columns from sheet5",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get row(s) in sheet6": {
+      "main": [
+        [
+          {
+            "node": "Delete rows or columns from sheet6",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get row(s) in sheet7": {
+      "main": [
+        [
+          {
+            "node": "Delete rows or columns from sheet7",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate"
+  },
+  "versionId": "8bd82e69-baac-41d0-a49a-05b2d954c7a9",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "312b8e1c27ba1ae94b15ee40f5b475cef18128657bfd8917a13927efa9db76b9"
+  },
+  "nodeGroups": [],
+  "id": "vHcx8F4mmfd3q1We",
+  "tags": []
+}
