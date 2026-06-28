@@ -3,23 +3,9 @@
   "nodes": [
     {
       "parameters": {
-        "options": {}
-      },
-      "type": "@n8n/n8n-nodes-langchain.chatTrigger",
-      "typeVersion": 1.4,
-      "position": [
-        -272,
-        -416
-      ],
-      "id": "1e206d48-2fde-496b-8cc3-d0ef04efd0c1",
-      "name": "When chat message received",
-      "webhookId": "903ab748-d04b-41b5-bbac-2f6f5d483989"
-    },
-    {
-      "parameters": {
         "hasOutputParser": true,
         "options": {
-          "systemMessage": "=# Advanced Deletion Quantity Rules\n\nعند اكتشاف طلب حذف، يجب على النظام تحديد عدد القرارات المطلوب حذفها.\n\nقم بإنشاء حقل جديد:\n\n\"delete_count\"\n\nالقواعد:\n\n* إذا لم يحدد المستخدم عدداً، اجعل القيمة 1.\n* إذا ذكر المستخدم عدداً صريحاً، استخرج العدد وضعه في الحقل.\n* إذا استخدم كلمات مثل:\n\n  * قرارين = 2\n  * ثلاثة قرارات = 3\n  * آخر خمس قرارات = 5\n  * آخر عشرة قرارات = 10\n\nأمثلة:\n\nطلب المستخدم:\n\n\"احذف آخر قرار\"\n\nالناتج:\n\n{\n\"action_type\": \"delete\",\n\"target_decision_id\": \"LAST\",\n\"delete_count\": 1\n}\n\n---\n\nطلب المستخدم:\n\n\"احذف آخر 3 قرارات\"\n\nالناتج:\n\n{\n\"action_type\": \"delete\",\n\"target_decision_id\": \"LAST\",\n\"delete_count\": 3\n}\n\n---\n\nطلب المستخدم:\n\n\"امسح آخر 5 قرارات\"\n\nالناتج:\n\n{\n\"action_type\": \"delete\",\n\"target_decision_id\": \"LAST\",\n\"delete_count\": 5\n}\n\n---\n\nطلب المستخدم:\n\n\"شيل قرار السفر لتركيا\"\n\nالناتج:\n\n{\n\"action_type\": \"delete\",\n\"delete_search_term\": \"السفر لتركيا\",\n\"delete_count\": 1\n}\n\n---\n\nطلب المستخدم:\n\n\"احذف قراري السفر لتركيا والاستقالة\"\n\nالناتج:\n\n{\n\"action_type\": \"delete\",\n\"delete_search_term\": \"السفر لتركيا, الاستقالة\",\n\"delete_count\": 2\n}\n\n---\n\nإذا تعذر تحديد العدد بشكل واضح:\n\nاجعل:\n\n\"delete_count\": 1\n\nكقيمة افتراضية.\n\n---\n\nCRITICAL:\n\nيجب أن يحسب النظام عدد العناصر المطلوب حذفها تلقائياً سواء تم التعبير عنها بالأرقام (3، 5، 10) أو بالكلمات العربية (قرارين، ثلاثة، خمسة، عشرة).\n"
+          "systemMessage": "=أنت مساعد ذكي ونظام لدعم اتخاذ القرار (Automated Decision Support System).\nمهمتك هي استقبال قرارات المستخدم وتصنيفها وتحليلها، ثم استخدام الأدوات المتاحة لديك (Google Sheets Tools) لتحديث التابات المناسبة بناءً على نوع التحليل.\n\nلديك الوصول إلى التابات التالية عبر الأدوات:\n1. Metadata & Context: لمعلومات القرار الأساسية وتصنيفه.\n2. Quantitative Scoring: للتقييم الرقمي والكمي.\n3. Qualitative Analysis & Diagnosis: للتحليل النوعي والتشخيص.\n4. Execution & Recommendation: للتوصيات والخطوات القادمة.\n\nعندما يطلب المستخدم تحليل قرار، قم أولاً بتحليله منطقياً، ثم استدعِ الأدوات المناسبة لحفظ كل جزء من التحليل في التابة المخصصة له في Google Sheets."
         }
       },
       "type": "@n8n/n8n-nodes-langchain.agent",
@@ -47,7 +33,7 @@
     },
     {
       "parameters": {
-        "modelName": "models/gemini-3.5-flash",
+        "modelName": "models/gemini-3.1-flash-lite",
         "options": {}
       },
       "type": "@n8n/n8n-nodes-langchain.lmChatGoogleGemini",
@@ -67,13 +53,14 @@
     },
     {
       "parameters": {
+        "modelName": "models/gemini-3.1-flash-lite",
         "options": {}
       },
       "type": "@n8n/n8n-nodes-langchain.lmChatGoogleGemini",
       "typeVersion": 1.1,
       "position": [
         448,
-        -96
+        32
       ],
       "id": "0aec9a26-c961-4022-adaf-2a0bbf573ad8",
       "name": "Google Gemini Chat Model",
@@ -86,7 +73,7 @@
     },
     {
       "parameters": {
-        "jsCode": "// 1. جلب البيانات القادمة من الـ AI Agent\nconst inputData = $input.item.json;\n\n// التحقق الرئيسي لمنع توقف السير والتأكد من وجود حقل output\nif (inputData && inputData.output) {\n    const data = inputData.output;\n\n    // =========================\n    // 1. email_target processing\n    // =========================\n    let rawTarget = (data.email_target || \"\").toLowerCase();\n    let finalTarget = \"none\";\n\n    // =========================\n    // 2. ID Safety (تنظيف ID)\n    // =========================\n    if (data.Metadata_Context && data.Metadata_Context.ID) {\n        let parsedId = parseInt(\n            data.Metadata_Context.ID.toString().replace(/\\D/g, ''),\n            10\n        );\n        data.Metadata_Context.ID =\n            isNaN(parsedId)\n                ? Math.floor(100000 + Math.random() * 900000)\n                : parsedId;\n    }\n\n    // =========================\n    // 3. Delete Handling\n    // =========================\n    let rawAction = (data.action_type || \"create\").toLowerCase();\n\n    let deleteTarget = (\n        data.delete_search_term ||\n        data.target_decision_id ||\n        \"none\"\n    ).toString().trim();\n\n    let deleteMode = (data.delete_mode || \"none\").toLowerCase();\n    let deleteCount = parseInt(data.delete_count, 10);\n\n    // حماية من القيم غير الصالحة\n    if (isNaN(deleteCount) || deleteCount < 1) {\n        deleteCount = 1;\n    }\n\n    if (rawAction === \"delete\") {\n\n        // حذف آخر قرارات\n        if (\n            deleteTarget.toUpperCase().includes(\"LAST\") ||\n            deleteTarget.includes(\"آخر\") ||\n            deleteTarget.includes(\"اخر\")\n        ) {\n            deleteTarget = \"LAST\";\n            deleteMode = \"last\";\n        }\n\n        // حذف بواسطة ID\n        else if (\n            data.target_decision_id &&\n            data.target_decision_id !== \"none\"\n        ) {\n            deleteMode = \"id\";\n            deleteTarget = data.target_decision_id;\n        }\n\n        // حذف بواسطة بحث\n        else if (\n            data.delete_search_term &&\n            data.delete_search_term !== \"none\"\n        ) {\n            deleteMode = \"search\";\n            deleteTarget = data.delete_search_term;\n        }\n    }\n\n    // =========================\n    // 4. Email Target Classification\n    // =========================\n    let finalTarget = \"none\";\n\n    if (\n        rawTarget.includes(\"metadata\") ||\n        rawTarget.includes(\"context\") ||\n        rawTarget.includes(\"قرار\")\n    ) {\n        finalTarget = \"metadata\";\n\n    } else if (\n        rawTarget.includes(\"scoring\") ||\n        rawTarget.includes(\"درج\") ||\n        rawTarget.includes(\"تقييم\")\n    ) {\n        finalTarget = \"scoring\";\n\n    } else if (\n        rawTarget.includes(\"analysis\") ||\n        rawTarget.includes(\"تحليل\") ||\n        rawTarget.includes(\"تشخيص\")\n    ) {\n        finalTarget = \"analysis\";\n\n    } else if (\n        rawTarget.includes(\"recommend\") ||\n        rawTarget.includes(\"توصي\") ||\n        rawTarget.includes(\"خطة\")\n    ) {\n        finalTarget = \"recommendation\";\n\n    } else if (\n        rawTarget.includes(\"all\") ||\n        rawTarget.includes(\"كل\") ||\n        rawTarget.includes(\"الكامل\")\n    ) {\n        finalTarget = \"all\";\n\n    } else if (rawTarget !== \"none\" && rawTarget.includes(\"@\")) {\n        finalTarget = \"all\";\n    }\n\n    // =========================\n    // 5. Message Formatting\n    // =========================\n    const formattedMessage = `\n## 🧠 قرار: ${data.Metadata_Context?.Decision || 'غير محدد'}\n---\n📊 **البيانات التعريفية والتقييم:**\n* **نوع القرار:** ${data.Metadata_Context?.Decision_Classification || '-'}\n* **معرّف القرار (ID):** ${data.Metadata_Context?.ID || '-'}\n* **التقييم الكمي الإجمالي:** ${data.Quantitative_Scoring?.Total_Score || '0'} من 14\n\n📋 **خطة العمل التنفيذية (Action Plan):**\n${data.Execution_Recommendation?.Action_Plan || '-'}\n\n⚠️ **إدارة المخاطر والحلول البديلة:**\n${data.Execution_Recommendation?.Risk_Mitigations || '-'}\n\n💡 **التوصية النهائية:**\n${data.Execution_Recommendation?.Recommendation || '-'}\n`.trim();\n\n    // =========================\n    // 6. Final Output\n    // =========================\n    return [{\n        json: {\n            Metadata_Context: data.Metadata_Context,\n            Quantitative_Scoring: data.Quantitative_Scoring,\n            Qualitative_Analysis_Diagnosis: data.Qualitative_Analysis,\n            Execution_Recommendation: data.Execution_Recommendation,\n\n            message: formattedMessage,\n            is_status_message: false,\n\n            send_email_target: finalTarget,\n            action_type: rawAction,\n\n            delete_target: deleteTarget,\n            delete_mode: deleteMode,\n            delete_count: deleteCount\n        }\n    }];\n\n} else {\n    return [{\n        json: {\n            message: inputData.output || \"لم يتم استخراج بيانات محددة.\",\n            is_status_message: true\n        }\n    }];\n}"
+        "jsCode": "/**\n * n8n Code Node — \"Calculate Delete Count + Sheet Routing + Email Flag\"\n * ------------------------------------------------\n * يُوضع بعد AI Agent node مباشرة.\n *\n * يتعامل مع مدخلين منفصلين قادمين من AI Agent:\n *\n * (A) مسار الحذف:\n * {\n *   action_type: \"delete\" | \"unclear\",\n *   target_decision_id: \"LAST\" | null,\n *   delete_search_term: string | null,\n *   delete_count_raw: string,\n *   delete_scope: \"last_n\" | \"single_last\" | \"by_search_term\" | \"all\"\n * }\n * → يُخرج: { action_type, target_decision_id, delete_search_term, delete_count }\n *\n * (B) مسار الرسالة/التحليل ($json.message + $json.send_email):\n * message = JSON منظم من AI Agent بـ 4 حقول:\n *   { metadata_context, quantitative_scoring, qualitative_analysis_diagnosis, execution_recommendation }\n * send_email = نص خام من AI Agent يدل على نية إرسال إيميل (مثل: \"نعم\"، \"بدي ايميل\"، \"\" ، null...)\n *\n * → يُخرج:\n * {\n *   sheets: {\n *     metadata_context: {...} | string,\n *     quantitative_scoring: {...} | string,\n *     qualitative_analysis_diagnosis: {...} | string,\n *     execution_recommendation: {...} | string\n *   },\n *   send_email: true | false   // boolean نهائي حتمي، فقط لو طلب صريح\n * }\n */\n\n// ---------- 1) قاموس الأرقام العربية (قابل للتوسعة من نقطة واحدة) ----------\nconst ARABIC_NUMBER_MAP = {\n  // المفرد / المثنى الخاص بكلمة \"قرار\"\n  \"قرار\": 1,\n  \"قرارين\": 2,\n  \"قراران\": 2,\n\n  // الأرقام الأساسية (مع/بدون تاء مربوطة، أخطاء إملائية شائعة)\n  \"واحد\": 1, \"واحدة\": 1,\n  \"اثنين\": 2, \"اثنان\": 2, \"ثنين\": 2,\n  \"ثلاثة\": 3, \"ثلاثه\": 3, \"تلاتة\": 3, \"تلاته\": 3,\n  \"اربعة\": 4, \"أربعة\": 4, \"اربعه\": 4, \"أربعه\": 4,\n  \"خمسة\": 5, \"خمسه\": 5,\n  \"ستة\": 6, \"سته\": 6,\n  \"سبعة\": 7, \"سبعه\": 7,\n  \"ثمانية\": 8, \"ثمانيه\": 8, \"تمانية\": 8,\n  \"تسعة\": 9, \"تسعه\": 9,\n  \"عشرة\": 10, \"عشره\": 10,\n\n  // صيغ مختصرة شائعة في العامية\n  \"خمس\": 5,\n  \"عشر\": 10,\n  \"تلات\": 3,\n  \"اربع\": 4,\n  \"ست\": 6,\n  \"سبع\": 7,\n  \"تمن\": 8,\n  \"تسع\": 9,\n};\n\n// ---------- 2) دالة استخراج أرقام إنجليزية (مع دعم الأرقام العربية ٠-٩) ----------\nfunction extractDigitNumber(text) {\n  if (!text) return null;\n\n  // تحويل الأرقام العربية-هندية (٠١٢٣٤٥٦٧٨٩) إلى لاتينية\n  const arabicIndicDigits = \"٠١٢٣٤٥٦٧٨٩\";\n  let normalized = text.replace(/[٠-٩]/g, (d) => arabicIndicDigits.indexOf(d));\n\n  const match = normalized.match(/\\d+/);\n  if (match) {\n    const num = parseInt(match[0], 10);\n    if (!isNaN(num) && num > 0) return num;\n  }\n  return null;\n}\n\n// ---------- 3) دالة استخراج العدد من كلمات عربية ----------\nfunction extractWordNumber(text) {\n  if (!text) return null;\n\n  // تنظيف النص: إزالة \"ال\" التعريف، علامات تشكيل، مسافات زائدة\n  const cleaned = text\n    .trim()\n    .replace(/^ال/, \"\")\n    .replace(/[\\u064B-\\u0652]/g, \"\"); // إزالة التشكيل\n\n  // مطابقة مباشرة\n  if (ARABIC_NUMBER_MAP.hasOwnProperty(cleaned)) {\n    return ARABIC_NUMBER_MAP[cleaned];\n  }\n\n  // مطابقة جزئية (في حال احتوى النص على كلمة الرقم ضمن جملة أطول)\n  for (const [word, value] of Object.entries(ARABIC_NUMBER_MAP)) {\n    if (cleaned.includes(word)) {\n      return value;\n    }\n  }\n\n  return null;\n}\n\n// ---------- 4) الدالة الرئيسية لحساب delete_count ----------\nfunction resolveDeleteCount(parsed) {\n  const scope = parsed.delete_scope;\n  const raw = (parsed.delete_count_raw || \"\").trim();\n  const searchTerm = parsed.delete_search_term;\n\n  // الحالة أ: الحذف بالاسم/الموضوع — العدد = عدد المصطلحات المفصولة بفاصلة\n  if (scope === \"by_search_term\" && searchTerm) {\n    const terms = searchTerm\n      .split(/[,،]/)\n      .map((t) => t.trim())\n      .filter((t) => t.length > 0);\n    return Math.max(terms.length, 1);\n  }\n\n  // الحالة ب: \"احذف آخر قرار\" بدون عدد\n  if (scope === \"single_last\" || !raw) {\n    return 1;\n  }\n\n  // الحالة ج: \"آخر N قرار/قرارات\" — جرب الأرقام الرقمية أولاً\n  const digitNum = extractDigitNumber(raw);\n  if (digitNum !== null) return digitNum;\n\n  // ثم جرب الكلمات العربية\n  const wordNum = extractWordNumber(raw);\n  if (wordNum !== null) return wordNum;\n\n  // الحالة الافتراضية: تعذر تحديد العدد بوضوح\n  return 1;\n}\n\n// ---------- 5) دالة استخراج نية إرسال الإيميل (boolean حتمي) ----------\n// قاعدة العمل: send_email = true فقط لو المستخدم طلب صراحة (بدي ايميل / ابعتلي ايميل / اي صيغة تأكيد واضحة)\n// أي غموض أو سكوت = false (الافتراضي الآمن، عشان ما نبعت ايميلات غير مطلوبة)\nconst EMAIL_POSITIVE_PATTERNS = [\n  \"بدي ايميل\",\n  \"بدي إيميل\",\n  \"ابعتلي ايميل\",\n  \"ابعتلي إيميل\",\n  \"ابعت ايميل\",\n  \"ابعت إيميل\",\n  \"بعتلي ايميل\",\n  \"ارسل ايميل\",\n  \"أرسل إيميل\",\n  \"ارسلي ايميل\",\n  \"ايميلي\",\n  \"إيميلي\",\n  \"send email\",\n  \"email me\",\n];\n\nconst EMAIL_NEGATIVE_PATTERNS = [\n  \"لا تبعت\",\n  \"ما بدي ايميل\",\n  \"ما بدي إيميل\",\n  \"بدون ايميل\",\n  \"بلا ايميل\",\n  \"no email\",\n];\n\nfunction resolveSendEmail(rawValue) {\n  // قبول boolean مباشر إذا أرسله AI Agent مسبقاً كـ boolean حقيقي\n  if (typeof rawValue === \"boolean\") return rawValue;\n\n  if (rawValue === null || rawValue === undefined) return false;\n\n  const text = String(rawValue).trim().toLowerCase();\n  if (text.length === 0) return false;\n\n  // فحص النفي أولاً (أولوية أعلى، لتجنب \"ما بدي ايميل\" يصير true بسبب وجود كلمة \"ايميل\")\n  for (const neg of EMAIL_NEGATIVE_PATTERNS) {\n    if (text.includes(neg)) return false;\n  }\n\n  for (const pos of EMAIL_POSITIVE_PATTERNS) {\n    if (text.includes(pos)) return true;\n  }\n\n  // فحص أضيق لـ \"نعم\"/\"yes\"/\"true\" بدون تضارب مع \"لا\"/كلمات أخرى تحتوي \"نعم\" كجزء (نادر بالعربي لكن للأمان)\n  if (text === \"نعم\" || text === \"yes\" || text === \"true\" || text === \"1\") {\n    return true;\n  }\n  if (text === \"لا\" || text === \"no\" || text === \"false\" || text === \"0\") {\n    return false;\n  }\n\n  // الافتراضي الآمن: لا إرسال إيميل بدون طلب صريح وواضح\n  return false;\n}\n\n// ---------- 6) دالة تجهيز الأقسام الأربعة (Sheets Routing) ----------\n// تقبل message كـ object جاهز أو نص JSON يحتاج parse\nconst SHEET_KEYS = [\n  \"metadata_context\",\n  \"quantitative_scoring\",\n  \"qualitative_analysis_diagnosis\",\n  \"execution_recommendation\",\n];\n\nfunction resolveSheets(messageInput) {\n  let messageObj;\n\n  if (typeof messageInput === \"string\") {\n    try {\n      messageObj = JSON.parse(messageInput);\n    } catch (err) {\n      // النص ليس JSON صالحاً — رجّع خطأ واضح بدل تخمين تقسيم خاطئ\n      return {\n        error: \"تعذر تحليل message كـ JSON منظم بالأقسام الأربعة\",\n        raw_message: messageInput,\n      };\n    }\n  } else if (typeof messageInput === \"object\" && messageInput !== null) {\n    messageObj = messageInput;\n  } else {\n    return {\n      error: \"message غير موجود أو بصيغة غير متوقعة\",\n      raw_message: messageInput,\n    };\n  }\n\n  const sheets = {};\n  const missingKeys = [];\n\n  for (const key of SHEET_KEYS) {\n    if (messageObj.hasOwnProperty(key)) {\n      sheets[key] = messageObj[key];\n    } else {\n      sheets[key] = null;\n      missingKeys.push(key);\n    }\n  }\n\n  if (missingKeys.length > 0) {\n    sheets._warning = `حقول ناقصة من AI Agent: ${missingKeys.join(\", \")}`;\n  }\n\n  return sheets;\n}\n\n// ---------- 7) نقطة الدخول داخل n8n Code Node ----------\n\n// ملاحظة: عدّل المسار حسب شكل خرج AI Agent node عندك.\nconst rawOutput = $input.item.json.output ?? $input.item.json.text ?? $input.item.json;\nconst hasMessageOrEmail =\n  $input.item.json.message !== undefined || $input.item.json.send_email !== undefined;\n\n// ===== المسار B: رسالة منظمة (4 فئات) + نية إيميل =====\n// يُفعّل هذا المسار إذا كان $json.message أو $json.send_email موجودين في المدخل.\nif (hasMessageOrEmail) {\n  const sheets = resolveSheets($input.item.json.message);\n  const send_email = resolveSendEmail($input.item.json.send_email);\n\n  return [\n    {\n      json: {\n        sheets,\n        send_email,\n      },\n    },\n  ];\n}\n\n// ===== المسار A: نية حذف (delete_count) =====\nlet parsed;\n\ntry {\n  parsed = typeof rawOutput === \"string\" ? JSON.parse(rawOutput) : rawOutput;\n} catch (err) {\n  // فشل تحليل JSON من LLM — رجّع خطأ واضح بدل كسر الـ workflow\n  return [\n    {\n      json: {\n        action_type: \"error\",\n        error: \"فشل تحليل خرج AI Agent كـ JSON\",\n        raw_output: rawOutput,\n      },\n    },\n  ];\n}\n\nif (parsed.action_type !== \"delete\") {\n  // لا توجد نية حذف — مرّر كما هو\n  return [{ json: parsed }];\n}\n\nconst delete_count = resolveDeleteCount(parsed);\n\nconst result = {\n  action_type: \"delete\",\n  target_decision_id: parsed.target_decision_id ?? null,\n  delete_search_term: parsed.delete_search_term ?? null,\n  delete_count: delete_count,\n};\n\nreturn [{ json: result }];\n"
       },
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
@@ -109,7 +96,7 @@
           "conditions": [
             {
               "id": "952124db-fba5-485f-b5fc-152c7a81742b",
-              "leftValue": "={{ $json.message }}",
+              "leftValue": "={{ $json.Metadata_Context }}",
               "rightValue": "Is Not True",
               "operator": {
                 "type": "boolean",
@@ -124,6 +111,36 @@
               "operator": {
                 "type": "boolean",
                 "operation": "notEquals"
+              }
+            },
+            {
+              "id": "fef2d534-e131-43ec-ba0b-a7e444e68bed",
+              "leftValue": "={{ $json.Quantitative_Scoring }}",
+              "rightValue": "",
+              "operator": {
+                "type": "object",
+                "operation": "notEmpty",
+                "singleValue": true
+              }
+            },
+            {
+              "id": "6175faf0-1f5d-4794-858d-236744863590",
+              "leftValue": "={{ $json.Qualitative_Analysis }}",
+              "rightValue": "",
+              "operator": {
+                "type": "object",
+                "operation": "notEmpty",
+                "singleValue": true
+              }
+            },
+            {
+              "id": "1629fe00-4e45-4aed-aec8-b80fbb416ea9",
+              "leftValue": "={{ $json.Execution_Recommendation }}",
+              "rightValue": "",
+              "operator": {
+                "type": "object",
+                "operation": "notEmpty",
+                "singleValue": true
               }
             }
           ],
@@ -143,15 +160,13 @@
     },
     {
       "parameters": {
-        "schemaType": "manual",
-        "inputSchema": "{\n\"type\": \"object\",\n\"properties\": {\n\"Metadata_Context\": {\n\"type\": \"object\",\n\"properties\": {\n\"ID\": { \"type\": \"integer\" },\n\"Decision\": { \"type\": \"string\" },\n\"Timestamp\": { \"type\": \"string\" },\n\"Decision_Classification\": { \"type\": \"string\" }\n},\n\"required\": [\"ID\", \"Decision\", \"Timestamp\", \"Decision_Classification\"]\n},\n\"Quantitative_Scoring\": {\n  \"type\": \"object\",\n  \"properties\": {\n    \"ID\": { \"type\": \"integer\" },\n    \"Financial_Score\": { \"type\": \"number\" },\n    \"Time_Score\": { \"type\": \"number\" },\n    \"Wellbeing_Score\": { \"type\": \"number\" },\n    \"Relationships_Score\": { \"type\": \"number\" },\n    \"Risks_Score\": { \"type\": \"number\" },\n    \"Opportunity_Cost_Score\": { \"type\": \"number\" },\n    \"Total_Score\": { \"type\": \"number\" }\n  },\n  \"required\": [\n    \"ID\",\n    \"Financial_Score\",\n    \"Time_Score\",\n    \"Wellbeing_Score\",\n    \"Relationships_Score\",\n    \"Risks_Score\",\n    \"Opportunity_Cost_Score\",\n    \"Total_Score\"\n  ]\n},\n\n\"Qualitative_Analysis\": {\n  \"type\": \"object\",\n  \"properties\": {\n    \"ID\": { \"type\": \"integer\" },\n    \"Priority\": { \"type\": \"string\" },\n    \"Commentary\": { \"type\": \"string\" },\n    \"Timeframe\": { \"type\": \"string\" }\n  },\n  \"required\": [\n    \"ID\",\n    \"Priority\",\n    \"Commentary\",\n    \"Timeframe\"\n  ]\n},\n\n\"Execution_Recommendation\": {\n  \"type\": \"object\",\n  \"properties\": {\n    \"ID\": { \"type\": \"integer\" },\n    \"Action_Plan\": { \"type\": \"string\" },\n    \"Risk_Mitigations\": { \"type\": \"string\" },\n    \"Recommendation\": { \"type\": \"string\" }\n  },\n  \"required\": [\n    \"ID\",\n    \"Action_Plan\",\n    \"Risk_Mitigations\",\n    \"Recommendation\"\n  ]\n},\n\n\"email_target\": {\n  \"type\": \"string\"\n},\n\n\"action_type\": {\n  \"type\": \"string\"\n},\n\n\"target_decision_id\": {\n  \"type\": \"string\"\n},\n\n\"delete_search_term\": {\n  \"type\": \"string\"\n},\n\n\"ID\": {\n  \"type\": \"integer\"\n},\n\n\"delete_mode\": {\n  \"type\": \"string\"\n},\n\n\"delete_count\": {\n  \"type\": \"integer\"\n}\n},\n\n\"required\": [\n\"Metadata_Context\",\n\"Quantitative_Scoring\",\n\"Qualitative_Analysis\",\n\"Execution_Recommendation\",\n\"email_target\",\n\"action_type\",\n\"target_decision_id\",\n\"delete_search_term\",\n\"delete_mode\",\n\"delete_count\",\n\"ID\"\n]\n}\n",
         "autoFix": true
       },
       "type": "@n8n/n8n-nodes-langchain.outputParserStructured",
       "typeVersion": 1.3,
       "position": [
-        320,
-        -224
+        304,
+        -128
       ],
       "id": "d2823c05-20df-4a00-b43b-6541133d213d",
       "name": "Structured Output Parser",
@@ -573,8 +588,8 @@
       "type": "n8n-nodes-base.gmail",
       "typeVersion": 2.2,
       "position": [
-        1568,
-        -640
+        2048,
+        -720
       ],
       "id": "f8def338-b9d3-4e3b-8d78-9f2696b141c1",
       "name": "Send a message",
@@ -636,7 +651,7 @@
               "rightValue": "none",
               "operator": {
                 "type": "string",
-                "operation": "notEquals"
+                "operation": "equals"
               }
             }
           ],
@@ -766,6 +781,29 @@
                 ],
                 "combinator": "and"
               }
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 3
+                },
+                "conditions": [
+                  {
+                    "id": "04350930-b09a-413e-be26-db7bd8e55b06",
+                    "leftValue": "={{ $json.send_email_target }}",
+                    "rightValue": "SWOT",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals",
+                      "name": "filter.operator.equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              }
             }
           ]
         },
@@ -792,8 +830,8 @@
       "type": "n8n-nodes-base.gmail",
       "typeVersion": 2.2,
       "position": [
-        1568,
-        -496
+        2048,
+        -576
       ],
       "id": "3055d6af-5287-4fee-bff2-192b0e56f5de",
       "name": "Send a message1",
@@ -817,8 +855,8 @@
       "type": "n8n-nodes-base.gmail",
       "typeVersion": 2.2,
       "position": [
-        1568,
-        -368
+        2048,
+        -448
       ],
       "id": "e8b7cee7-7420-4d41-9024-4448377258a2",
       "name": "Send a message2",
@@ -842,8 +880,8 @@
       "type": "n8n-nodes-base.gmail",
       "typeVersion": 2.2,
       "position": [
-        1568,
-        -240
+        2048,
+        -320
       ],
       "id": "5c5af600-cd56-422b-8f67-7b041946f92b",
       "name": "Send a message3",
@@ -867,8 +905,8 @@
       "type": "n8n-nodes-base.gmail",
       "typeVersion": 2.2,
       "position": [
-        1568,
-        -112
+        2048,
+        -192
       ],
       "id": "cfacf8c0-f846-4a1b-86a7-741b1a853cd6",
       "name": "Send a message4",
@@ -935,7 +973,7 @@
       "type": "n8n-nodes-base.googleSheets",
       "typeVersion": 4.7,
       "position": [
-        1360,
+        1648,
         144
       ],
       "id": "5c5d1d08-e13c-4d73-b2c1-80e6f9ed5cea",
@@ -974,7 +1012,7 @@
       "type": "n8n-nodes-base.if",
       "typeVersion": 2.3,
       "position": [
-        880,
+        1168,
         400
       ],
       "id": "7e8b16f0-c51c-4619-b948-c9e4046f5552",
@@ -1001,7 +1039,7 @@
       "type": "n8n-nodes-base.googleSheets",
       "typeVersion": 4.7,
       "position": [
-        1184,
+        1472,
         144
       ],
       "id": "56b8d71b-b69b-4200-af9e-82f05b42ebb2",
@@ -1035,7 +1073,7 @@
       "type": "n8n-nodes-base.googleSheets",
       "typeVersion": 4.7,
       "position": [
-        1360,
+        1648,
         320
       ],
       "id": "dbf48fce-7fab-4694-96c8-93973a9bfdb5",
@@ -1068,7 +1106,7 @@
       "type": "n8n-nodes-base.googleSheets",
       "typeVersion": 4.7,
       "position": [
-        1184,
+        1472,
         320
       ],
       "id": "f714be0c-d761-47dc-a32d-423b6ce19f14",
@@ -1102,7 +1140,7 @@
       "type": "n8n-nodes-base.googleSheets",
       "typeVersion": 4.7,
       "position": [
-        1360,
+        1648,
         480
       ],
       "id": "742afd20-635b-4a12-9398-6883bc7c5dcd",
@@ -1135,7 +1173,7 @@
       "type": "n8n-nodes-base.googleSheets",
       "typeVersion": 4.7,
       "position": [
-        1184,
+        1472,
         480
       ],
       "id": "5516f70c-9193-414b-a20f-2dcff8493536",
@@ -1169,7 +1207,7 @@
       "type": "n8n-nodes-base.googleSheets",
       "typeVersion": 4.7,
       "position": [
-        1360,
+        1648,
         640
       ],
       "id": "b1c0ef09-78d3-4a4e-9fc0-a28381734f4d",
@@ -1202,7 +1240,7 @@
       "type": "n8n-nodes-base.googleSheets",
       "typeVersion": 4.7,
       "position": [
-        1184,
+        1472,
         640
       ],
       "id": "f2baa922-d04c-42e7-acb9-bc325cf109cc",
@@ -1216,51 +1254,16 @@
     },
     {
       "parameters": {
-        "path": "submit-feedback",
-        "options": {}
-      },
-      "type": "n8n-nodes-base.webhook",
-      "typeVersion": 2.1,
-      "position": [
-        -368,
-        432
-      ],
-      "id": "387e9a1e-aafc-4e33-9da5-2112e98bd803",
-      "name": "Webhook",
-      "webhookId": "38a280fa-3bb3-40bc-96fd-b663646fda94"
-    },
-    {
-      "parameters": {
-        "model": "groq/compound",
-        "options": {}
-      },
-      "type": "@n8n/n8n-nodes-langchain.lmChatGroq",
-      "typeVersion": 1,
-      "position": [
-        -704,
-        -96
-      ],
-      "id": "07436232-0e0e-475e-b972-191d9b8f02e1",
-      "name": "Groq Chat Model",
-      "credentials": {
-        "groqApi": {
-          "id": "vMDWS7hWLeXXEXm8",
-          "name": "Groq account"
-        }
-      }
-    },
-    {
-      "parameters": {
         "sendTo": "moathhazeem661@gmail.com",
         "subject": "New decision",
-        "message": "=<!DOCTYPE html>\n<html lang=\"ar\" dir=\"rtl\">\n<head>\n    <meta charset=\"UTF-8\">\n    <title>تقرير دعم القرار والتقييم</title>\n</head>\n<body style=\"margin: 0; padding: 0; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background-color: #f4f6f9; color: #333333;\">\n\n    <!-- الحاوية الرئيسية للإيميل -->\n    <table align=\"center\" border=\"0\" cellpadding=\"0\" cellspacing=\"0\" width=\"100%\" style=\"max-width: 600px; background-color: #ffffff; margin: 20px auto; border-radius: 8px; box-shadow: 0 4px 10px rgba(0,0,0,0.05); overflow: hidden; border: 1px solid #e1e5eb;\">\n        \n        <!-- الهيدر / ترويسة النظام -->\n        <tr>\n            <td style=\"background: linear-gradient(135deg, #1e3c72, #2a5298); padding: 25px; text-align: center; color: #ffffff;\">\n                <h1 style=\"margin: 0; font-size: 22px; font-weight: 600; letter-spacing: 0.5px;\">مساعد القرارات الذكي</h1>\n                <p style=\"margin: 5px 0 0 0; font-size: 14px; opacity: 0.9;\">تقرير تحليل القرار رقم #{{ $json.Metadata_Context.ID }}</p>\n            </td>\n        </tr>\n\n        <!-- محتوى القرار الأساسي -->\n        <tr>\n            <td style=\"padding: 30px 25px 20px 25px;\">\n                <div style=\"background-color: #f8f9fa; border-right: 4px solid #1e3c72; padding: 15px; margin-bottom: 25px; border-radius: 4px;\">\n                    <span style=\"font-size: 12px; color: #777777; font-weight: bold; display: block; margin-bottom: 5px;\">القرار المقترح للتحليل:</span>\n                    <p style=\"margin: 0; font-size: 16px; font-weight: 600; color: #1e3c72; line-height: 1.5;\">{{ $json.Metadata_Context.Decision }}</p>\n                </div>\n\n                <!-- جدول المؤشرات الأساسية السريعة -->\n                <table width=\"100%\" cellpadding=\"0\" cellspacing=\"0\" style=\"margin-bottom: 25px; font-size: 14px;\">\n                    <tr>\n                        <td style=\"padding: 8px 0; border-bottom: 1px solid #eeeeee;\"><strong>تصنيف القرار:</strong></td>\n                        <td style=\"padding: 8px 0; border-bottom: 1px solid #eeeeee; text-align: left; color: #555555;\">{{ $json.Metadata_Context.Classification }}</td>\n                    </tr>\n                    <tr>\n                        <td style=\"padding: 8px 0; border-bottom: 1px solid #eeeeee;\"><strong>الأولوية الحالية:</strong></td>\n                        <td style=\"padding: 8px 0; border-bottom: 1px solid #eeeeee; text-align: left;\"><span style=\"background-color: #ffeef0; color: #d9383a; padding: 3px 8px; border-radius: 4px; font-weight: bold; font-size: 12px;\">{{ $json.Quantitative_Scoring.Priority }}</span></td>\n                    </tr>\n                    <tr>\n                        <td style=\"padding: 8px 0; border-bottom: 1px solid #eeeeee;\"><strong>المدى الزمني للتنفيذ:</strong></td>\n                        <td style=\"padding: 8px 0; border-bottom: 1px solid #eeeeee; text-align: left; color: #555555;\">{{ $json.Qualitative_Analysis_Diagnosis.Timeframe }}</td>\n                    </tr>\n                </table>\n\n                <!-- التوصية والتشخيص -->\n                <h3 style=\"color: #1e3c72; font-size: 16px; margin: 0 0 10px 0; border-bottom: 2px solid #f0f2f5; padding-bottom: 5px;\">📋 التوصية والتشخيص العام</h3>\n                <p style=\"font-size: 14px; line-height: 1.6; color: #4a5568; margin: 0 0 20px 0;\">{{ $json.Execution_Recommendation.Recommendation }}</p>\n\n                <!-- خطة العمل المباشرة -->\n                <h3 style=\"color: #1e3c72; font-size: 16px; margin: 0 0 10px 0; border-bottom: 2px solid #f0f2f5; padding-bottom: 5px;\">🚀 خطة التنفيذ العملي (Action Plan)</h3>\n                <div style=\"font-size: 14px; line-height: 1.7; color: #4a5568; margin: 0 0 25px 0; white-space: pre-line;\">\n                    {{ $json.Execution_Recommendation.Action_Plan }}\n                </div>\n\n                <!-- تحليل المخاطر -->\n                <h3 style=\"color: #d9383a; font-size: 16px; margin: 0 0 10px 0; border-bottom: 2px solid #f0f2f5; padding-bottom: 5px;\">⚠️ إدارة المخاطر والحلول المحتملة</h3>\n                <div style=\"font-size: 14px; line-height: 1.7; color: #4a5568; margin: 0 0 25px 0; white-space: pre-line;\">\n                    {{ $json.Execution_Recommendation.Risk_Mitigations }}\n                </div>\n            </td>\n        </tr>\n\n        <!-- سيكشن الفورم المصغر وتغذية الراجع (User Feedback) بناءً على شيت image_3f300b.png -->\n        <tr>\n            <td style=\"padding: 25px; background-color: #f8f9fa; border-top: 1px solid #e1e5eb;\">\n                <div style=\"text-align: center; margin-bottom: 15px;\">\n                    <h3 style=\"margin: 0 0 5px 0; color: #333333; font-size: 16px;\">🔄 مدى نجاح القرار (Decision evaluation)</h3>\n                    <p style=\"margin: 0; font-size: 13px; color: #666666;\">يرجى تقييم القرار المتخذ من 1 (منخفض جداً) إلى 10 (ممتاز):</p>\n                </div>\n\n                <!-- فورم الأزرار السريعة للتقييم الرقمي -->\n                <table width=\"100%\" cellpadding=\"0\" cellspacing=\"2\" style=\"text-align: center; margin-bottom: 20px;\">\n                    <tr>\n                        <!-- الأرقام مصممة كروابط ترسل رقم القرار والتقييم للـ Webhook مباشرة -->\n                        <td><a href=\"https://your-n8n-url.com/webhook/feedback?id={{ $json.Metadata_Context.ID }}&evaluation=1\" style=\"display: block; padding: 10px 0; background-color: #e63946; color: #ffffff; text-decoration: none; border-radius: 4px; font-weight: bold; font-size: 13px;\">1</a></td>\n                        <td><a href=\"https://your-n8n-url.com/webhook/feedback?id={{ $json.Metadata_Context.ID }}&evaluation=2\" style=\"display: block; padding: 10px 0; background-color: #e63946; color: #ffffff; text-decoration: none; border-radius: 4px; font-weight: bold; font-size: 13px;\">2</a></td>\n                        <td><a href=\"https://your-n8n-url.com/webhook/feedback?id={{ $json.Metadata_Context.ID }}&evaluation=3\" style=\"display: block; padding: 10px 0; background-color: #f4a261; color: #ffffff; text-decoration: none; border-radius: 4px; font-weight: bold; font-size: 13px;\">3</a></td>\n                        <td><a href=\"https://your-n8n-url.com/webhook/feedback?id={{ $json.Metadata_Context.ID }}&evaluation=4\" style=\"display: block; padding: 10px 0; background-color: #f4a261; color: #ffffff; text-decoration: none; border-radius: 4px; font-weight: bold; font-size: 13px;\">4</a></td>\n                        <td><a href=\"https://your-n8n-url.com/webhook/feedback?id={{ $json.Metadata_Context.ID }}&evaluation=5\" style=\"display: block; padding: 10px 0; background-color: #e9c46a; color: #333333; text-decoration: none; border-radius: 4px; font-weight: bold; font-size: 13px;\">5</a></td>\n                        <td><a href=\"https://your-n8n-url.com/webhook/feedback?id={{ $json.Metadata_Context.ID }}&evaluation=6\" style=\"display: block; padding: 10px 0; background-color: #e9c46a; color: #333333; text-decoration: none; border-radius: 4px; font-weight: bold; font-size: 13px;\">6</a></td>\n                        <td><a href=\"https://your-n8n-url.com/webhook/feedback?id={{ $json.Metadata_Context.ID }}&evaluation=7\" style=\"display: block; padding: 10px 0; background-color: #2a9d8f; color: #ffffff; text-decoration: none; border-radius: 4px; font-weight: bold; font-size: 13px;\">7</a></td>\n                        <td><a href=\"https://your-n8n-url.com/webhook/feedback?id={{ $json.Metadata_Context.ID }}&evaluation=8\" style=\"display: block; padding: 10px 0; background-color: #2a9d8f; color: #ffffff; text-decoration: none; border-radius: 4px; font-weight: bold; font-size: 13px;\">8</a></td>\n                        <td><a href=\"https://your-n8n-url.com/webhook/feedback?id={{ $json.Metadata_Context.ID }}&evaluation=9\" style=\"display: block; padding: 10px 0; background-color: #2a9d8f; color: #ffffff; text-decoration: none; border-radius: 4px; font-weight: bold; font-size: 13px;\">9</a></td>\n                        <td><a href=\"https://your-n8n-url.com/webhook/feedback?id={{ $json.Metadata_Context.ID }}&evaluation=10\" style=\"display: block; padding: 10px 0; background-color: #1d3557; color: #ffffff; text-decoration: none; border-radius: 4px; font-weight: bold; font-size: 13px;\">10</a></td>\n                    </tr>\n                </table>\n\n                <!-- فورم مصغر اختياري لإضافة نص الملاحظات المباشر (User feedback) -->\n                <form action=\"http://localhost:5678/webhook-test/submit-feedback\" method=\"GET\" style=\"margin: 0; text-align: center;\">\n                    <!-- حقول مخفية لتمرير الـ ID والـ Status تلقائياً للشيت -->\n                    <input type=\"hidden\" name=\"id\" value=\"{{ $json.Metadata_Context.ID }}\">\n                    <input type=\"hidden\" name=\"status\" value=\"Completed\">\n                    \n                    <label for=\"feedback_text\" style=\"display: block; font-size: 13px; color: #555555; text-align: right; margin-bottom: 5px; font-weight: bold;\">أضف ملاحظات إضافية (User feedback):</label>\n                    <input type=\"text\" id=\"feedback_text\" name=\"user_feedback\" placeholder=\"اكتب مبررات النجاح أو الفشل هنا...\" style=\"width: 100%; box-sizing: border-box; padding: 10px; border: 1px solid #cccccc; border-radius: 4px; font-size: 13px; margin-bottom: 12px; font-family: inherit; direction: rtl;\">\n                    \n                    <button type=\"submit\" style=\"background-color: #1e3c72; color: #ffffff; border: none; padding: 10px 20px; font-size: 14px; font-weight: bold; border-radius: 4px; cursor: pointer; transition: background 0.2s;\">إرسال الملاحظات النصية</button>\n                </form>\n            </td>\n        </tr>\n\n        <!-- الفوتر السفلي -->\n        <tr>\n            <td style=\"background-color: #eaeef3; padding: 15px; text-align: center; font-size: 11px; color: #777777;\">\n                هذا التقرير تم إنشاؤه تلقائياً بواسطة نظام دعم اتخاذ القرار المدعوم بالذكاء الاصطناعي.<br>\n                جميع التقييمات تساهم في تحسين قراراتك المستقبلية.\n            </td>\n        </tr>\n    </table>\n\n</body>\n</html>",
+        "message": "=<!DOCTYPE html>\n<html lang=\"ar\" dir=\"rtl\">\n<head>\n    <meta charset=\"UTF-8\">\n    <title>تقرير دعم القرار والتقييم</title>\n</head>\n<body style=\"margin: 0; padding: 0; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background-color: #f4f6f9; color: #333333;\">\n\n    <table align=\"center\" border=\"0\" cellpadding=\"0\" cellspacing=\"0\" width=\"100%\" style=\"max-width: 600px; background-color: #ffffff; margin: 20px auto; border-radius: 8px; box-shadow: 0 4px 10px rgba(0,0,0,0.05); overflow: hidden; border: 1px solid #e1e5eb;\">\n        \n        <tr>\n            <td style=\"background: linear-gradient(135deg, #1e3c72, #2a5298); padding: 25px; text-align: center; color: #ffffff;\">\n                <h1 style=\"margin: 0; font-size: 22px; font-weight: 600; letter-spacing: 0.5px;\">مساعد القرارات الذكي</h1>\n                <p style=\"margin: 5px 0 0 0; font-size: 14px; opacity: 0.9;\">تاريخ وموعد التحليل: {{ $json.Timestamp }}</p>\n            </td>\n        </tr>\n\n        <tr>\n            <td style=\"padding: 30px 25px 20px 25px;\">\n                <div style=\"background-color: #f8f9fa; border-right: 4px solid #1e3c72; padding: 15px; margin-bottom: 25px; border-radius: 4px;\">\n                    <span style=\"font-size: 12px; color: #777777; font-weight: bold; display: block; margin-bottom: 5px;\">القرار المقترح للتحليل:</span>\n                    <p style=\"margin: 0; font-size: 16px; font-weight: 600; color: #1e3c72; line-height: 1.5;\">{{ $json.Decision }}</p>\n                </div>\n\n                <table width=\"100%\" cellpadding=\"0\" cellspacing=\"0\" style=\"margin-bottom: 25px; font-size: 14px;\">\n                    <tr>\n                        <td style=\"padding: 8px 0; border-bottom: 1px solid #eeeeee;\"><strong>الأولوية الحالية للقرار:</strong></td>\n                        <td style=\"padding: 8px 0; border-bottom: 1px solid #eeeeee; text-align: left;\"><span style=\"background-color: #ffeef0; color: #d9383a; padding: 3px 8px; border-radius: 4px; font-weight: bold; font-size: 12px;\">{{ $json.Priority }}</span></td>\n                    </tr>\n                </table>\n\n                <h3 style=\"color: #1e3c72; font-size: 16px; margin: 0 0 10px 0; border-bottom: 2px solid #f0f2f5; padding-bottom: 5px;\">🚀 خطة التنفيذ العملي (Action Plan)</h3>\n                <div style=\"font-size: 14px; line-height: 1.7; color: #4a5568; margin: 0 0 25px 0; white-space: pre-line;\">\n                   {{ $json['Action Plan'] }}\n                </div>\n            </td>\n        </tr>\n\n        <tr>\n            <td style=\"padding: 25px; background-color: #f8f9fa; border-top: 1px solid #e1e5eb;\">\n                <div style=\"text-align: center; margin-bottom: 15px;\">\n                    <h3 style=\"margin: 0 0 5px 0; color: #333333; font-size: 16px;\">🔄 مدى نجاح القرار (Decision evaluation)</h3>\n                    <p style=\"margin: 0; font-size: 13px; color: #666666;\">يرجى تقييم القرار المتخذ من 1 (منخفض جداً) إلى 10 (ممتاز):</p>\n                </div>\n\n                <table width=\"100%\" cellpadding=\"0\" cellspacing=\"2\" style=\"text-align: center; margin-bottom: 20px;\">\n                    <tr>\n                        <td><a href=\"https://your-n8n-url.com/webhook/feedback?id={{ $json.ID }}&evaluation=1\" style=\"display: block; padding: 10px 0; background-color: #e63946; color: #ffffff; text-decoration: none; border-radius: 4px; font-weight: bold; font-size: 13px;\">1</a></td>\n                        <td><a href=\"https://your-n8n-url.com/webhook/feedback?id={{ $json.ID }}&evaluation=2\" style=\"display: block; padding: 10px 0; background-color: #e63946; color: #ffffff; text-decoration: none; border-radius: 4px; font-weight: bold; font-size: 13px;\">2</a></td>\n                        <td><a href=\"https://your-n8n-url.com/webhook/feedback?id={{ $json.ID }}&evaluation=3\" style=\"display: block; padding: 10px 0; background-color: #f4a261; color: #ffffff; text-decoration: none; border-radius: 4px; font-weight: bold; font-size: 13px;\">3</a></td>\n                        <td><a href=\"https://your-n8n-url.com/webhook/feedback?id={{ $json.ID }}&evaluation=4\" style=\"display: block; padding: 10px 0; background-color: #f4a261; color: #ffffff; text-decoration: none; border-radius: 4px; font-weight: bold; font-size: 13px;\">4</a></td>\n                        <td><a href=\"https://your-n8n-url.com/webhook/feedback?id={{ $json.ID }}&evaluation=5\" style=\"display: block; padding: 10px 0; background-color: #e9c46a; color: #333333; text-decoration: none; border-radius: 4px; font-weight: bold; font-size: 13px;\">5</a></td>\n                        <td><a href=\"https://your-n8n-url.com/webhook/feedback?id={{ $json.ID }}&evaluation=6\" style=\"display: block; padding: 10px 0; background-color: #e9c46a; color: #333333; text-decoration: none; border-radius: 4px; font-weight: bold; font-size: 13px;\">6</a></td>\n                        <td><a href=\"https://your-n8n-url.com/webhook/feedback?id={{ $json.ID }}&evaluation=7\" style=\"display: block; padding: 10px 0; background-color: #2a9d8f; color: #ffffff; text-decoration: none; border-radius: 4px; font-weight: bold; font-size: 13px;\">7</a></td>\n                        <td><a href=\"https://your-n8n-url.com/webhook/feedback?id={{ $json.ID }}&evaluation=8\" style=\"display: block; padding: 10px 0; background-color: #2a9d8f; color: #ffffff; text-decoration: none; border-radius: 4px; font-weight: bold; font-size: 13px;\">8</a></td>\n                        <td><a href=\"https://your-n8n-url.com/webhook/feedback?id={{ $json.ID }}&evaluation=9\" style=\"display: block; padding: 10px 0; background-color: #2a9d8f; color: #ffffff; text-decoration: none; border-radius: 4px; font-weight: bold; font-size: 13px;\">9</a></td>\n                        <td><a href=\"https://your-n8n-url.com/webhook/feedback?id={{ $json.ID }}&evaluation=10\" style=\"display: block; padding: 10px 0; background-color: #1d3557; color: #ffffff; text-decoration: none; border-radius: 4px; font-weight: bold; font-size: 13px;\">10</a></td>\n                    </tr>\n                </table>\n            </td>\n        </tr>\n    </table>\n\n</body>\n</html>",
         "options": {}
       },
       "type": "n8n-nodes-base.gmail",
       "typeVersion": 2.2,
       "position": [
-        1872,
-        -1168
+        2336,
+        -1296
       ],
       "id": "a83bc87f-5a5d-4774-b938-2eb13d7217cd",
       "name": "Send a message5",
@@ -1274,44 +1277,6 @@
     },
     {
       "parameters": {
-        "operation": "appendOrUpdate",
-        "documentId": {
-          "__rl": true,
-          "value": "1PxNA1-3gD350MTcTtqd5uViJ8SO0uX-WwnIigjleUZw",
-          "mode": "list",
-          "cachedResultName": "Automated Decision Support System",
-          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1PxNA1-3gD350MTcTtqd5uViJ8SO0uX-WwnIigjleUZw/edit?usp=drivesdk"
-        },
-        "sheetName": {
-          "__rl": true,
-          "value": 36964260,
-          "mode": "list",
-          "cachedResultName": "Feedback User",
-          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1PxNA1-3gD350MTcTtqd5uViJ8SO0uX-WwnIigjleUZw/edit#gid=36964260"
-        },
-        "columns": {
-          "mappingMode": "defineBelow",
-          "value": {}
-        },
-        "options": {}
-      },
-      "type": "n8n-nodes-base.googleSheets",
-      "typeVersion": 4.7,
-      "position": [
-        -160,
-        432
-      ],
-      "id": "86a1c94f-1371-415a-8bbb-64718e5df6dc",
-      "name": "Append or update row in sheet",
-      "credentials": {
-        "googleSheetsOAuth2Api": {
-          "id": "qPcYFvcEFGVnuJDH",
-          "name": "Google Sheets account 2"
-        }
-      }
-    },
-    {
-      "parameters": {
         "sendTo": "moathhazeem661@gmail.com",
         "subject": "New decision",
         "message": "=<!DOCTYPE html>\n<html lang=\"ar\" dir=\"rtl\">\n<head>\n    <meta charset=\"UTF-8\">\n    <title>تأكيد حذف القرارات</title>\n</head>\n<body style=\"margin: 0; padding: 0; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background-color: #f4f6f9; color: #333333;\">\n\n    <!-- الحاوية الرئيسية للإيميل -->\n    <table align=\"center\" border=\"0\" cellpadding=\"0\" cellspacing=\"0\" width=\"100%\" style=\"max-width: 600px; background-color: #ffffff; margin: 20px auto; border-radius: 8px; box-shadow: 0 4px 10px rgba(0,0,0,0.05); overflow: hidden; border: 1px solid #e1e5eb;\">\n        \n        <!-- الهيدر التحذيري -->\n        <tr>\n            <td style=\"background: linear-gradient(135deg, #d9383a, #b32426); padding: 25px; text-align: center; color: #ffffff;\">\n                <h1 style=\"margin: 0; font-size: 22px; font-weight: 600; letter-spacing: 0.5px;\">🗑️ تأكيد حذف بيانات من النظام</h1>\n                <p style=\"margin: 5px 0 0 0; font-size: 14px; opacity: 0.9;\">تمت عملية الحذف بنجاح بناءً على طلبك</p>\n            </td>\n        </tr>\n\n        <!-- المحتوى الأساسي -->\n        <tr>\n            <td style=\"padding: 30px 25px 20px 25px;\">\n                \n                <!-- صندوق الإحصائيات السريع -->\n                <div style=\"background-color: #fff5f5; border-right: 4px solid #d9383a; padding: 15px; margin-bottom: 25px; border-radius: 4px;\">\n                    <p style=\"margin: 0; font-size: 15px; color: #b32426; line-height: 1.6;\">\n                        مرحباً، نود إعلامك بأنه قد تم إزالة \n                        <strong style=\"font-size: 18px; font-weight: bold;\">{{ $json.length }}</strong> \n                        من القرارات التاريخية نهائياً من جداول البيانات الخاصة بك.\n                    </p>\n                </div>\n\n                <h3 style=\"color: #333333; font-size: 16px; margin: 0 0 15px 0; border-bottom: 2px solid #f0f2f5; padding-bottom: 5px;\">📋 قائمة القرارات التي تم حذفها:</h3>\n\n                <!-- جدول عرض القرارات المحذوفة ديناميكياً -->\n                <table width=\"100%\" cellpadding=\"10\" cellspacing=\"0\" style=\"border-collapse: collapse; font-size: 14px; text-align: right; margin-bottom: 20px;\">\n                    <thead>\n                        <tr style=\"background-color: #f8f9fa; border-bottom: 2px solid #e1e5eb;\">\n                            <th style=\"padding: 10px; color: #1e3c72; font-weight: bold; border: 1px solid #e1e5eb;\">رقم القرار (ID)</th>\n                            <th style=\"padding: 10px; color: #1e3c72; font-weight: bold; border: 1px solid #e1e5eb;\">القرار (Decision)</th>\n                            <th style=\"padding: 10px; color: #1e3c72; font-weight: bold; border: 1px solid #e1e5eb;\">التاريخ (Timestamp)</th>\n                        </tr>\n                    </thead>\n                    <tbody>\n                        /* سيقوم n8n بتكرار هذا الجزء تلقائياً بناءً على عدد العناصر الممررة */\n                        {{#each $json}}\n                        <tr style=\"border-bottom: 1px solid #eeeeee;\">\n                            <td style=\"padding: 10px; font-weight: bold; color: #555555; border: 1px solid #eeeeee;\">#{{ $json.ID }}</td>\n                            <td style=\"padding: 10px; color: #333333; line-height: 1.4; border: 1px solid #eeeeee;\">{{ $json.Decision }}</td>\n                            <td style=\"padding: 10px; color: #666666; font-size: 13px; border: 1px solid #eeeeee; white-space: nowrap;\">{{ $json.Timestamp }}</td>\n                        </tr>\n                        {{/each}}\n                    </tbody>\n                </table>\n\n            </td>\n        </tr>\n\n        <!-- الفوتر السفلي -->\n        <tr>\n            <td style=\"background-color: #f8f9fa; padding: 15px; text-align: center; font-size: 11px; color: #777777; border-top: 1px solid #e1e5eb;\">\n                تم توثيق هذه العملية وإرسالها تلقائياً لإدارة جودة البيانات في النظام الكلي.<br>\n                تاريخ تنفيذ العملية الحالية: 2026-06-25\n            </td>\n        </tr>\n    </table>\n\n</body>\n</html>",
@@ -1320,8 +1285,8 @@
       "type": "n8n-nodes-base.gmail",
       "typeVersion": 2.2,
       "position": [
-        1648,
-        416
+        2384,
+        448
       ],
       "id": "8ceb82a0-60d0-478a-8653-5db67f7cd649",
       "name": "Send a message6",
@@ -1332,23 +1297,6 @@
           "name": "Gmail account"
         }
       }
-    },
-    {
-      "parameters": {
-        "rule": {
-          "interval": [
-            {}
-          ]
-        }
-      },
-      "type": "n8n-nodes-base.scheduleTrigger",
-      "typeVersion": 1.3,
-      "position": [
-        -464,
-        1040
-      ],
-      "id": "9286cdd1-f5fe-4515-b9a6-a3953c5e2487",
-      "name": "Schedule Trigger"
     },
     {
       "parameters": {
@@ -1519,6 +1467,7 @@
     },
     {
       "parameters": {
+        "operation": "appendOrUpdate",
         "documentId": {
           "__rl": true,
           "value": "1PxNA1-3gD350MTcTtqd5uViJ8SO0uX-WwnIigjleUZw",
@@ -1528,107 +1477,84 @@
         },
         "sheetName": {
           "__rl": true,
-          "value": 910178914,
+          "value": 175016056,
           "mode": "list",
-          "cachedResultName": "User performance",
-          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1PxNA1-3gD350MTcTtqd5uViJ8SO0uX-WwnIigjleUZw/edit#gid=910178914"
+          "cachedResultName": "SWOT",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1PxNA1-3gD350MTcTtqd5uViJ8SO0uX-WwnIigjleUZw/edit#gid=175016056"
         },
-        "filtersUI": {
-          "values": [
+        "columns": {
+          "mappingMode": "autoMapInputData",
+          "value": {
+            "ID": "={{ $json.Execution_Recommendation.ID }}"
+          },
+          "matchingColumns": [
+            "ID"
+          ],
+          "schema": [
             {
-              "lookupColumn": "Date",
-              "lookupValue": "={{ $today.minus({ days: 7 }).toISODate() }}"
+              "id": "ID",
+              "displayName": "ID",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "Strengths",
+              "displayName": "Strengths",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "Weaknesses",
+              "displayName": "Weaknesses",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "Opportunities",
+              "displayName": "Opportunities",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "Threats",
+              "displayName": "Threats",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
             }
-          ]
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
         },
         "options": {}
       },
       "type": "n8n-nodes-base.googleSheets",
       "typeVersion": 4.7,
       "position": [
-        -272,
-        1040
+        1568,
+        -1664
       ],
-      "id": "7d0aaca3-525e-4187-a561-40ef159233f4",
-      "name": "Get row(s) in sheet4",
-      "credentials": {
-        "googleSheetsOAuth2Api": {
-          "id": "qPcYFvcEFGVnuJDH",
-          "name": "Google Sheets account 2"
-        }
-      }
-    },
-    {
-      "parameters": {
-        "options": {
-          "systemMessage": "You are a strategic performance analyst and intelligent operations advisor.\n\nYou will receive a weekly user operations report. Your task is to carefully analyze the data and generate a structured, insight-driven performance review.\n\nYour output must be professional, clear, and motivational, focusing on actionable insights rather than generic summaries.\n\nYour report must include the following sections:\n\n1) Executive Summary  \nProvide a concise overview of the most important achievements and overall weekly performance.\n\n2) Key Insights & Challenges  \nAnalyze the data to identify:\n- Main achievements\n- Bottlenecks or issues (if any)\n- Behavioral or operational patterns worth noting\n\n3) Strategic Improvement Plan  \nBased strictly on the observed data, provide exactly three practical and actionable recommendations for the next week.  \nEach recommendation must be specific, realistic, and directly linked to the observed performance.\n\n4) Growth Direction  \nBriefly describe the user's overall direction and potential for improvement based on current trends.\n\n---\n\nRules:\n- Do NOT include unnecessary filler or vague motivational phrases.\n- Do NOT invent data not present in the report.\n- Focus on patterns, trends, and actionable intelligence.\n- Keep tone professional, supportive, and strategic."
-        }
-      },
-      "type": "@n8n/n8n-nodes-langchain.agent",
-      "typeVersion": 3.1,
-      "position": [
-        144,
-        1040
-      ],
-      "id": "8ff73b6b-db3e-4ed5-9a08-749124f3e3ff",
-      "name": "AI Agent1"
-    },
-    {
-      "parameters": {
-        "options": {}
-      },
-      "type": "@n8n/n8n-nodes-langchain.lmChatGoogleGemini",
-      "typeVersion": 1.1,
-      "position": [
-        128,
-        1216
-      ],
-      "id": "91720dbe-55a2-4dde-9e03-ed269e01973f",
-      "name": "Google Gemini Chat Model2",
-      "credentials": {
-        "googlePalmApi": {
-          "id": "5bQnUFfdkzbJs3Ln",
-          "name": "Google Gemini(PaLM) Api account 2"
-        }
-      }
-    },
-    {
-      "parameters": {},
-      "type": "@n8n/n8n-nodes-langchain.memoryBufferWindow",
-      "typeVersion": 1.4,
-      "position": [
-        224,
-        1216
-      ],
-      "id": "a6d23de3-8375-4610-b812-260612455c89",
-      "name": "Simple Memory1"
-    },
-    {
-      "parameters": {
-        "documentId": {
-          "__rl": true,
-          "value": "1PxNA1-3gD350MTcTtqd5uViJ8SO0uX-WwnIigjleUZw",
-          "mode": "list",
-          "cachedResultName": "Automated Decision Support System",
-          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1PxNA1-3gD350MTcTtqd5uViJ8SO0uX-WwnIigjleUZw/edit?usp=drivesdk"
-        },
-        "sheetName": {
-          "__rl": true,
-          "value": 910178914,
-          "mode": "list",
-          "cachedResultName": "User performance",
-          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1PxNA1-3gD350MTcTtqd5uViJ8SO0uX-WwnIigjleUZw/edit#gid=910178914"
-        },
-        "options": {}
-      },
-      "type": "n8n-nodes-base.googleSheetsTool",
-      "typeVersion": 4.7,
-      "position": [
-        320,
-        1216
-      ],
-      "id": "576bc4da-114b-4064-bc54-0480df218e7c",
-      "name": "Get row(s) in sheet in Google Sheets",
+      "id": "13495413-dfca-44f5-8eed-b49228e94c00",
+      "name": "Execution & Recommendation1",
       "credentials": {
         "googleSheetsOAuth2Api": {
           "id": "qPcYFvcEFGVnuJDH",
@@ -1639,19 +1565,21 @@
     {
       "parameters": {
         "sendTo": "moathhazeem661@gmail.com",
-        "subject": "Your performance to this week",
-        "message": "=<!DOCTYPE html> <html lang=\"ar\" dir=\"rtl\"> <head>     <meta charset=\"UTF-8\">     <title>دليل بناء الوكيل الاستباقي (Proactive Agent) عبر n8n و Google Sheets</title>     <style>         /* إعدادات التنسيق العام والصفحة */         body {             font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;             color: #2d3748;             line-height: 1.6;             margin: 20px auto;             max-width: 900px;             padding: 20px;             background-color: #f4f7f6;         }          *, *::before, *::after {             box-sizing: border-box;         }          /* اللوحة العلوية - الهيدر */         .header-banner {             background: linear-gradient(135deg, #1a365d 0%, #2b6cb0 100%);             color: #ffffff;             padding: 35px;             border-radius: 8px;             margin-bottom: 30px;             box-shadow: 0 4px 6px rgba(0,0,0,0.05);         }          .header-banner h1 {             font-size: 22pt;             margin: 0 0 10px 0;             font-weight: 700;         }          .header-banner p {             font-size: 11pt;             margin: 0;             opacity: 0.9;         }          /* العناوين الرئيسي والفرعية */         h2 {             font-size: 15pt;             color: #2c5282;             border-right: 4px solid #3182ce;             padding-right: 12px;             margin-top: 30px;             margin-bottom: 15px;         }          h3 {             font-size: 12pt;             color: #4a5568;             margin-top: 0;             margin-bottom: 10px;         }          p, li {             font-size: 10.5pt;             color: #4a5568;             text-align: justify;         }          /* تنسيق الجداول */         table {             width: 100%;             border-collapse: collapse;             margin-top: 15px;             margin-bottom: 25px;             font-size: 10pt;             background-color: #ffffff;             box-shadow: 0 2px 4px rgba(0,0,0,0.02);             border-radius: 6px;             overflow: hidden;         }          th {             background-color: #2b6cb0;             color: #ffffff;             font-weight: 600;             text-align: right;             padding: 12px;             border: 1px solid #2b6cb0;         }          td {             padding: 12px;             border: 1px solid #e2e8f0;         }          tr:nth-child(even) td {             background-color: #f7fafc;         }          /* بطاقات خطوات الـ n8n */         .card {             background-color: #ffffff;             border: 1px solid #e2e8f0;             border-radius: 6px;             padding: 20px;             margin-bottom: 20px;             box-shadow: 0 2px 4px rgba(0,0,0,0.02);         }          /* صناديق الأكواد البرمجية */         .code-container {             background-color: #1a202c;             color: #edf2f7;             padding: 15px;             border-radius: 6px;             font-family: 'Courier New', Courier, monospace;             font-size: 9.5pt;             direction: ltr;             text-align: left;             margin: 15px 0;             white-space: pre-wrap;             line-height: 1.5;         }          /* صناديق التمييز والنصائح */         .highlight-box {             background-color: #ebf8ff;             border-right: 4px solid #3182ce;             padding: 15px;             border-radius: 4px;             margin: 15px 0;         }          .highlight-box p {             margin: 0 0 8px 0;             color: #2b6cb0;             font-weight: 600;         }                  .highlight-box p:last-child {             margin-bottom: 0;         }          /* الأرقام الدائرية للخطوات */         .step-number {             background-color: #3182ce;             color: white;             border-radius: 50%;             display: inline-block;             width: 24px;             height: 24px;             text-align: center;             line-height: 24px;             font-size: 10pt;             font-weight: bold;             margin-left: 8px;         }          /* شارات التمييز الصغيرة للبيانات */         .badge {             display: inline-block;             padding: 2px 6px;             background-color: #e2e8f0;             color: #4a5568;             border-radius: 4px;             font-size: 9pt;             font-weight: 600;         }                  .badge-accent {             background-color: #feebc8;             color: #c05621;         }     </style> </head> <body>      <div class=\"header-banner\">         <h1>تفعيل ميزة \"الوكيل الاستباقي\" (Proactive Agent)</h1>         <p>دليل إعداد جدول البيانات وهندسة مسار الأتمتة عبر منصة n8n لتحليل الأداء الأسبوعي الاستراتيجي الذكي</p>     </div>      <h2>1. هيكلة جدول البيانات (Google Sheets Configuration)</h2>     <p>لتزويد نموذج الذكاء الاصطناعي بالسياق الكامل، تم تصميم هذا الجدول لتوثيق العمليات والمشروعات بشكل يسهل على النظام قراءته وتصفيته زمنياً بنهاية كل أسبوع:</p>          <table>         <thead>             <tr>                 <th style=\"width: 15%;\">اسم العمود (Column)</th>                 <th style=\"width: 20%;\">نوع البيانات</th>                 <th style=\"width: 45%;\">الوصف والهدف الاستراتيجي منه</th>                 <th style=\"width: 20%;\">مثال سياقي للبيانات</th>             </tr>         </thead>         <tbody>             <tr>                 <td><strong>ID</strong></td>                 <td>رقم تسلسلي <span class=\"badge\">Integer</span></td>                 <td>مُعرف فريد وحيد لكل عملية مسجلة لتجنب تكرار البيانات أو حدوث تداخل.</td>                 <td><code>1024</code></td>             </tr>             <tr>                 <td><strong>Date</strong></td>                 <td>تاريخ ووقت <span class=\"badge\">DateTime</span></td>                 <td>الركيزة الأساسية للأتمتة الاستباقية؛ يتيح لـ n8n تصفية وجلب بيانات الأسبوع الحالي فقط.</td>                 <td><code>2026-06-25</code></td>             </tr>             <tr>                 <td><strong>Task_Operation</strong></td>                 <td>نص مفتوح <span class=\"badge\">Text</span></td>                 <td>تفاصيل الإجراء أو البريد أو العملية التي تم التعامل معها تلقائياً بالخلفية.</td>                 <td>تحديث واجهة لوحة التحكم في مشروع Saknak</td>             </tr>             <tr>                 <td><strong>Status</strong></td>                 <td>قائمة محددة <span class=\"badge\">Enum</span></td>                 <td>حالة المهمة (Completed / Delayed / In Progress) لمعرفة كفاءة الإنجاز وسرعته.</td>                 <td><span class=\"badge badge-accent\">Delayed</span></td>             </tr>             <tr>                 <td><strong>Category_Project</strong></td>                 <td>نص / تصنيف <span class=\"badge\">String</span></td>                 <td>اسم المشروع أو نوع العملية لتحديد قنوات استهلاك الوقت وتوجيه التوصيات بدقة.</td>                 <td>Saknak - Development</td>             </tr>             <tr>                 <td><strong>Metrics_Results</strong></td>                 <td>نص / أرقام <span class=\"badge\">Text</span></td>                 <td>مؤشرات الأداء الرقمية المرتبطة بالحدث (مثل: الوقت المستغرق، أو نسبة الأخطاء).</td>                 <td>Time spent: 4h, Errors: 2</td>             </tr>             <tr>                 <td><strong>Notes_Issues</strong></td>                 <td>نص طويل <span class=\"badge\">Text</span></td>                 <td>العقبات أو الملاحظات النوعية؛ وهي المصدر الأساسي الذي يستخرج منه الوكيل نصائحه الذكية.</td>                 <td>تأخر بسبب عدم توافق بعض مكتبات التصميم المحدثة</td>             </tr>         </tbody>     </table>      <h2>2. هندسة مسار الأتمتة الذكي (n8n Workflow Blueprint)</h2>     <p>يتكون المسار الاستباقي من 5 عُقد (Nodes) متكاملة تعمل بتناغم وتلقائية تامة نهاية كل أسبوع:</p>      <div class=\"card\">         <h3><span class=\"step-number\">1</span> عُقدة المشغّل الزمني (Schedule Trigger)</h3>         <p><strong>الإعداد والضبط:</strong> يتم ضبط خيار التكرار على <code>Every Week</code> واختيار يوم نهاية الأسبوع (مثل السبت الساعة 9:00 صباحاً).</p>         <p><strong>الهدف:</strong> نقل النظام بالكامل من وضع الانتظار والاستجابة إلى المبادرة التلقائية الدورية الفعالة.</p>     </div>      <div class=\"card\">         <h3><span class=\"step-number\">2</span> عُقدة القراءة المفلترة (Google Sheets - Read Rows)</h3>         <p><strong>الإعداد والضبط:</strong> ربط الحساب واختيار الجدول، مع تفعيل خيار الفلترة (Filter) بناءً على عمود التاريخ <code>Date</code> لمنع جلب البيانات القديمة.</p>         <p><strong>التعبير الديناميكي (Expression):</strong> يتم جلب السطور التي يكون تاريخها أكبر من أو يساوي تاريخ اليوم مطروحاً منه 7 أيام باستخدام الصياغة الزمنية لمنصة n8n:</p>         <div class=\"code-container\">{{ $today.minus({ days: 7 }) }}</div>     </div>      <div class=\"card\">         <h3><span class=\"step-number\">3</span> عُقدة التجميع البرمجية (Code Node - JavaScript)</h3>         <p><strong>الإعداد والضبط:</strong> تحويل مصفوفة السطور المنفصلة القادمة من جوجل شيت إلى كتلة نصية واحدة (String) ليسهل على نموذج الذكاء الاصطناعي قراءتها وفهم السياق العام كتقرير واحد متكامل.</p>         <p><strong>كود المعالجة التجميعي (JavaScript):</strong></p>         <div class=\"code-container\"> // جلب مصفوفة العناصر القادمة من جوجل شيت const rows = items;  let reportContext = \"إليك البيانات والأحداث التي تمت خلال هذا الأسبوع:\\\\n\\\\n\";  for (const row of rows) {   const data = row.json;   reportContext += `- التاريخ: ${data.Date} | المشروع: ${data.Category_Project} | العملية: ${data.Task_Operation} | الحالة: ${data.Status} | الملاحظات: ${data.Notes_Issues}\\\\n`; }  // تصدير السياق النصي النهائي لعقدة الذكاء الاصطناعي return [{ json: { full_context: reportContext } }];</div>     </div>      <div class=\"card\">         <h3><span class=\"step-number\">4</span> عُقدة المحرك الذكي (Advanced AI / Gemini Node)</h3>         <p><strong>توجيه النظام (System Prompt):</strong></p>         <div class=\"highlight-box\">             <p>أنت خبير استراتيجي ومحلل أداء ذكي ومبادر. سأزودك بتقرير العمليات الأسبوعي الخاص بالمستخدم من جدول البيانات.</p>             <p>مهمتك هي تحليل هذه البيانات بدقة وتوليد \"تقرير أداء شخصي واستراتيجي\" بأسلوب مهني ومحفز يتضمن:</p>             <p>1. ملخص تنفيذي لأبرز الإنجازات المحققة على مدار الأسبوع.<br>2. رصد وتحليل للمشاكل البرمجية أو العمليات المعلقة والمتأخرة.<br>3. تقديم 3 نصائح استراتيجية عملية واضحة للتحسين وتفادي العقبات في الأسبوع القادم.</p>         </div>         <p><strong>المدخلات (Prompt):</strong> نقوم بربط مخرجات عقدة الكود السابقة مباشرة لتمريرها للمحرك: <code>{{ $json.full_context }}</code>.</p>     </div>      <div class=\"card\">         <h3><span class=\"step-number\">5</span> عُقدة الإرسال الاستباقي (Telegram / Gmail Node)</h3>         <p><strong>الإعداد والضبط:</strong> ربط العقدة بـ Chat ID الخاص بحسابك على تليجرام أو بريدك الإلكتروني.</p>         <p><strong>المحتوى المخرج:</strong> تمرير المخرجات النصية النهائية المبتكرة والذكية المباشرة من عُقدة الذكاء الاصطناعي دون تعديل لتصلك كرسالة استشارية متميزة.</p>     </div>      <div class=\"highlight-box\" style=\"background-color: #f0fff4; border-right-color: #38a169;\">         <p style=\"color: #276749;\">💡 لمسة ذكاء اصطناعي متقدمة لاستدامة النظام:</p>         <p style=\"color: #4a5568; font-weight: normal; font-size: 10pt; margin-top: 5px;\">             يمكنك إضافة عمود إضافي بالجدول باسم <code>Priority</code> (أولوية: High / Medium / Low). وفي توجيه النظام (System Prompt)، وجّه الذكاء الاصطناعي بأنه: \"إذا وجدت أي مهمة حالتها <code>Delayed</code> وأولويتها <code>High</code>، قم فوراً بإنشاء قسم خاص في أول التقرير باللون الأحمر يسمى <b>(تنبيه للمخاطر العاجلة)</b> مع اقتراح حلول فورية لتجاوزها\".         </p>     </div>  </body> </html>",
-        "options": {}
+        "subject": "={{ $json.Metadata_Context.Decision }}",
+        "message": "=<div style=\"font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; color: #333333; background-color: #f9f9f9; direction: rtl; border-radius: 12px; box-shadow: 0 4px 10px rgba(0,0,0,0.05);\">\n  <div style=\"text-align: center; padding-bottom: 20px; border-bottom: 2px solid #eef2f3;\">\n    <h2 style=\"color: #4A5568; margin: 0; font-size: 24px;\">📊 تقرير البيانات التعريفية</h2>\n    <p style=\"color: #718096; font-size: 14px; margin-top: 5px;\">تفاصيل سياق القرار المستخرج.</p>\n  </div>\n\n  <div style=\"margin-top: 25px; background: #ffffff; padding: 22px; border-radius: 8px; border-right: 6px solid #4F46E5; box-shadow: 0 2px 5px rgba(0,0,0,0.02);\">\n    <h3 style=\"color: #4F46E5; margin-top: 0; font-size: 19px; border-bottom: 1px solid #F3F4F6; padding-bottom: 8px;\">🔍 تفاصيل القرار والسياق (Metadata)</h3>\n    <table style=\"width: 100%; margin-top: 15px; font-size: 15px; border-collapse: collapse;\">\n      <tr style=\"background: #F9FAFB;\"><td style=\"padding: 10px; font-weight: bold; width: 30%;\">المعرف البرمجي:</td><td style=\"padding: 10px; color: #4F46E5; font-family: monospace;\">{{ $json.Metadata_Context.ID }}</td></tr>\n      <tr><td style=\"padding: 10px; font-weight: bold;\">القرار المتخذ:</td><td style=\"padding: 10px; line-height: 1.5;\">{{ $json.Metadata_Context.Decision }}</td></tr>\n      <tr style=\"background: #F9FAFB;\"><td style=\"padding: 10px; font-weight: bold;\">تاريخ التسجيل:</td><td style=\"padding: 10px;\">{{ $json.Metadata_Context.Timestamp }}</td></tr>\n      <tr><td style=\"padding: 10px; font-weight: bold;\">تصنيف القرار:</td><td style=\"padding: 10px;\"><span style=\"background: #EEF2F6; padding: 4px 10px; border-radius: 6px; font-size: 13px; color: #312E81; font-weight: bold;\">{{ $json.Metadata_Context.Decision_Classification }}</span></td></tr>\n    </table>\n  </div>",
+        "options": {
+          "appendAttribution": false
+        }
       },
       "type": "n8n-nodes-base.gmail",
       "typeVersion": 2.2,
       "position": [
-        576,
-        1040
+        2048,
+        -48
       ],
-      "id": "4d8c8062-9d3c-4536-a1c9-d254bc7d54dd",
+      "id": "0cb6531f-a232-40c6-881b-9af738ccff41",
       "name": "Send a message7",
-      "webhookId": "2a7af271-62b2-435a-afbb-717e89264350",
+      "webhookId": "ff3c9f41-445a-4a65-bd70-8cf78d3fd0ec",
       "credentials": {
         "gmailOAuth2": {
           "id": "9NcBOjKo4wAbWWGE",
@@ -1661,31 +1589,965 @@
     },
     {
       "parameters": {
-        "jsCode": "// جلب مصفوفة السطور القادمة من جوجل شيت\nconst rows = items; \nlet reportContext = \"إليك سجل العمليات والأحداث المسجلة في جدول البيانات لهذا الأسبوع:\\n\\n\";\n\nfor (const row of rows) {\n  const data = row.json;\n  // تأكد من تطابق أسماء الأعمدة هنا مع الأسماء الحقيقية في الشيت الخاص بك\n  reportContext += `- التاريخ: ${data.Date || 'غير محدد'} | المشروع: ${data.Category_Project || 'عام'} | العملية: ${data.Task_Operation || ''} | الحالة: ${data.Status || ''} | ملاحظات وعقبات: ${data.Notes_Issues || 'لا يوجد'}\\n`;\n}\n\n// إرسال النص المدمج كعنصر رئيسي للعقدة التالية\nreturn [{ json: { full_context: reportContext } }];"
+        "operation": "delete",
+        "documentId": {
+          "__rl": true,
+          "value": "1PxNA1-3gD350MTcTtqd5uViJ8SO0uX-WwnIigjleUZw",
+          "mode": "list",
+          "cachedResultName": "Automated Decision Support System",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1PxNA1-3gD350MTcTtqd5uViJ8SO0uX-WwnIigjleUZw/edit?usp=drivesdk"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": 175016056,
+          "mode": "list",
+          "cachedResultName": "SWOT",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1PxNA1-3gD350MTcTtqd5uViJ8SO0uX-WwnIigjleUZw/edit#gid=175016056"
+        },
+        "startIndex": "={{ $json.row_number }}"
+      },
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        1648,
+        816
+      ],
+      "id": "737d8ace-87b3-402e-8544-80c41cc94db3",
+      "name": "Delete rows or columns from sheet4",
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "qPcYFvcEFGVnuJDH",
+          "name": "Google Sheets account 2"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "documentId": {
+          "__rl": true,
+          "value": "1PxNA1-3gD350MTcTtqd5uViJ8SO0uX-WwnIigjleUZw",
+          "mode": "list",
+          "cachedResultName": "Automated Decision Support System",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1PxNA1-3gD350MTcTtqd5uViJ8SO0uX-WwnIigjleUZw/edit?usp=drivesdk"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": 175016056,
+          "mode": "list",
+          "cachedResultName": "SWOT",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1PxNA1-3gD350MTcTtqd5uViJ8SO0uX-WwnIigjleUZw/edit#gid=175016056"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        1472,
+        816
+      ],
+      "id": "81d112d9-c719-4bb7-bceb-0f5255962a45",
+      "name": "Get row(s) in sheet4",
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "qPcYFvcEFGVnuJDH",
+          "name": "Google Sheets account 2"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// 1. جلب البيانات من كافة العقد والشيتات المتفرقة\nconst Metadata_Context = $(\"Metadata & Context\").first().json;\nconst Quantitative_Scoring = $(\"Quantitative Scoring\").first().json;\nconst Qualitative_Analysis_Diagnosis = $(\"Qualitative Analysis & Diagnosis\").first().json;\nconst Execution_Recommendation = $(\"Execution & Recommendation\").first().json;\nconst SWOT = $(\"SWOT\").first().json;\n\n// 2. تجميع الحقول الموحدة المطلوبة للإيميل والـ IF\nreturn [\n  {\n    json: {\n      // جلب الـ ID من أي شيت متاح فيه\n      ID: Metadata_Context.ID || Quantitative_Scoring.ID || Qualitative_Analysis_Diagnosis.ID || Execution_Recommendation.ID || SWOT.ID, \n      \n      // جلب اسم القرار (يدعم التسمية العادية أو التسمية الخاصة بالـ AI)\n      Decision: Metadata_Context.Decision || Metadata_Context.decision_title || Quantitative_Scoring.Decision || Quantitative_Scoring.decision_title || Qualitative_Analysis_Diagnosis.Decision || Qualitative_Analysis_Diagnosis.decision_title || Execution_Recommendation.Decision || Execution_Recommendation.decision_title || SWOT.Decision || SWOT.decision_title, \n      \n      // جلب التوقيت (من الشيت الأساسي أو شيتات التقييم، وإذا لم يوجد يضع الوقت الحالي)\n      Timestamp: Metadata_Context.Timestamp || Metadata_Context.date || Quantitative_Scoring.Timestamp || Quantitative_Scoring.date || new Date().toISOString(), \n      \n      // جلب الأولوية من شيت التحليل النوعي أو شيت التوصيات\n      Priority: Qualitative_Analysis_Diagnosis.Priority || Execution_Recommendation.Priority || \"Medium\", \n      \n      // جلب خطة العمل من شيت التوصيات التنفيذية\n      Action_Plan: Execution_Recommendation.Action_Plan || Execution_Recommendation['Action Plan'] || \"لا يوجد خطة عمل حالية\"\n    }\n  }\n];"
       },
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        -64,
-        1040
+        2096,
+        -1296
       ],
-      "id": "621fb18b-549b-43e0-a579-a67cea44934d",
+      "id": "0b2e7908-8253-4947-9f5b-7634cc51cc03",
       "name": "Code in JavaScript1"
+    },
+    {
+      "parameters": {
+        "jsCode": "// دالة مساعدة لجلب البيانات بأمان دون كسر الكود إذا كانت العقدة غير مفعلة أو لم يتم المرور عليها\nfunction getSafeJson(nodeName) {\n  try {\n    const node = $(nodeName);\n    if (node && typeof node.first === 'function') {\n      const firstItem = node.first();\n      if (firstItem && firstItem.json) {\n        return firstItem.json;\n      }\n    }\n  } catch (e) {\n    // في حال عدم وجود العقدة في المسار الحالي (مثل حالات الحذف) يتم تجاهل الخطأ وإرجاع كائن فارغ\n  }\n  return {};\n}\n\n// 1. جلب البيانات بأمان من كافة العقد والشيتات المتفرقة\nconst Metadata_Context = getSafeJson(\"Metadata & Context\");\nconst Quantitative_Scoring = getSafeJson(\"Quantitative Scoring\");\nconst Qualitative_Analysis_Diagnosis = getSafeJson(\"Qualitative Analysis & Diagnosis\");\nconst Execution_Recommendation = getSafeJson(\"Execution & Recommendation\");\nconst SWOT = getSafeJson(\"SWOT\");\n\n// 2. تجميع الحقول الموحدة (ستأخذ قيمتها من الشيت النشط فقط سواء كان تحليل أو حذف)\nreturn [\n  {\n    json: {\n      // جلب الـ ID من الشيت المتوفر حالياً\n      ID: Metadata_Context.ID || Quantitative_Scoring.ID || Qualitative_Analysis_Diagnosis.ID || Execution_Recommendation.ID || SWOT.ID || null, \n      \n      // جلب اسم القرار أو موضوع الحذف المتوفر\n      Decision: Metadata_Context.Decision || Metadata_Context.decision_title || \n                Quantitative_Scoring.Decision || Quantitative_Scoring.decision_title || \n                Qualitative_Analysis_Diagnosis.Decision || Qualitative_Analysis_Diagnosis.decision_title || \n                Execution_Recommendation.Decision || Execution_Recommendation.decision_title || \n                SWOT.Decision || SWOT.decision_title || \"إجراء حذف / تعديل مقيد\", \n      \n      // جلب التوقيت المتاح، أو وضع التوقيت الحالي\n      Timestamp: Metadata_Context.Timestamp || Metadata_Context.date || \n                 Quantitative_Scoring.Timestamp || Quantitative_Scoring.date || \n                 Qualitative_Analysis_Diagnosis.Timestamp || Execution_Recommendation.Timestamp ||\n                 new Date().toISOString(), \n      \n      // جلب الأولوية إن وجدت\n      Priority: Qualitative_Analysis_Diagnosis.Priority || Execution_Recommendation.Priority || \"Medium\", \n      \n      // جلب خطة العمل إن وجدت\n      Action_Plan: Execution_Recommendation.Action_Plan || Execution_Recommendation['Action Plan'] || \"تم تنفيذ إجراء الحذف بنجاح\"\n    }\n  }\n];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2048,
+        448
+      ],
+      "id": "d80cfd65-2492-4a43-9110-7f3671b33a77",
+      "name": "Code in JavaScript2"
+    },
+    {
+      "parameters": {
+        "hasOutputParser": true,
+        "options": {
+          "systemMessage": "=أنت مساعد ذكي ونظام لدعم اتخاذ القرار (Automated Decision Support System).\nمهمتك هي استقبال قرارات المستخدم وتصنيفها وتحليلها، ثم استخدام الأدوات المتاحة لديك (Google Sheets Tools) لتحديث التابات المناسبة بناءً على نوع التحليل.\n\nلديك الوصول إلى التابات التالية عبر الأدوات:\n1. Metadata & Context: لمعلومات القرار الأساسية وتصنيفه.\n2. Quantitative Scoring: للتقييم الرقمي والكمي.\n3. Qualitative Analysis & Diagnosis: للتحليل النوعي والتشخيص.\n4. Execution & Recommendation: للتوصيات والخطوات القادمة.\n\nعندما يطلب المستخدم تحليل قرار، قم أولاً بتحليله منطقياً، ثم استدعِ الأدوات المناسبة لحفظ كل جزء من التحليل في التابة المخصصة له في Google Sheets."
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 3.1,
+      "position": [
+        2464,
+        -304
+      ],
+      "id": "39f824ed-4858-4027-b2d2-11f27f114ca3",
+      "name": "AI Agent1",
+      "alwaysOutputData": false
+    },
+    {
+      "parameters": {
+        "contextWindowLength": 1
+      },
+      "type": "@n8n/n8n-nodes-langchain.memoryBufferWindow",
+      "typeVersion": 1.4,
+      "position": [
+        2416,
+        -112
+      ],
+      "id": "5cd29a7b-99b6-4b42-820b-80740905a36c",
+      "name": "Simple Memory1"
+    },
+    {
+      "parameters": {
+        "modelName": "models/gemini-3.1-flash-lite",
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatGoogleGemini",
+      "typeVersion": 1.1,
+      "position": [
+        2272,
+        -128
+      ],
+      "id": "fd162c9e-22b3-44a7-92dc-81343b63cc0f",
+      "name": "Google Gemini Chat Model2",
+      "credentials": {
+        "googlePalmApi": {
+          "id": "5bQnUFfdkzbJs3Ln",
+          "name": "Google Gemini(PaLM) Api account 2"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "/**\n * n8n Code Node — \"Calculate Delete Count + Sheet Routing + Email Flag\"\n * ------------------------------------------------\n * يُوضع بعد AI Agent node مباشرة.\n *\n * يتعامل مع مدخلين منفصلين قادمين من AI Agent:\n *\n * (A) مسار الحذف:\n * {\n *   action_type: \"delete\" | \"unclear\",\n *   target_decision_id: \"LAST\" | null,\n *   delete_search_term: string | null,\n *   delete_count_raw: string,\n *   delete_scope: \"last_n\" | \"single_last\" | \"by_search_term\" | \"all\"\n * }\n * → يُخرج: { action_type, target_decision_id, delete_search_term, delete_count }\n *\n * (B) مسار الرسالة/التحليل ($json.message + $json.send_email):\n * message = JSON منظم من AI Agent بـ 4 حقول:\n *   { metadata_context, quantitative_scoring, qualitative_analysis_diagnosis, execution_recommendation }\n * send_email = نص خام من AI Agent يدل على نية إرسال إيميل (مثل: \"نعم\"، \"بدي ايميل\"، \"\" ، null...)\n *\n * → يُخرج:\n * {\n *   sheets: {\n *     metadata_context: {...} | string,\n *     quantitative_scoring: {...} | string,\n *     qualitative_analysis_diagnosis: {...} | string,\n *     execution_recommendation: {...} | string\n *   },\n *   send_email: true | false   // boolean نهائي حتمي، فقط لو طلب صريح\n * }\n */\n\n// ---------- 1) قاموس الأرقام العربية (قابل للتوسعة من نقطة واحدة) ----------\nconst ARABIC_NUMBER_MAP = {\n  // المفرد / المثنى الخاص بكلمة \"قرار\"\n  \"قرار\": 1,\n  \"قرارين\": 2,\n  \"قراران\": 2,\n\n  // الأرقام الأساسية (مع/بدون تاء مربوطة، أخطاء إملائية شائعة)\n  \"واحد\": 1, \"واحدة\": 1,\n  \"اثنين\": 2, \"اثنان\": 2, \"ثنين\": 2,\n  \"ثلاثة\": 3, \"ثلاثه\": 3, \"تلاتة\": 3, \"تلاته\": 3,\n  \"اربعة\": 4, \"أربعة\": 4, \"اربعه\": 4, \"أربعه\": 4,\n  \"خمسة\": 5, \"خمسه\": 5,\n  \"ستة\": 6, \"سته\": 6,\n  \"سبعة\": 7, \"سبعه\": 7,\n  \"ثمانية\": 8, \"ثمانيه\": 8, \"تمانية\": 8,\n  \"تسعة\": 9, \"تسعه\": 9,\n  \"عشرة\": 10, \"عشره\": 10,\n\n  // صيغ مختصرة شائعة في العامية\n  \"خمس\": 5,\n  \"عشر\": 10,\n  \"تلات\": 3,\n  \"اربع\": 4,\n  \"ست\": 6,\n  \"سبع\": 7,\n  \"تمن\": 8,\n  \"تسع\": 9,\n};\n\n// ---------- 2) دالة استخراج أرقام إنجليزية (مع دعم الأرقام العربية ٠-٩) ----------\nfunction extractDigitNumber(text) {\n  if (!text) return null;\n\n  // تحويل الأرقام العربية-هندية (٠١٢٣٤٥٦٧٨٩) إلى لاتينية\n  const arabicIndicDigits = \"٠١٢٣٤٥٦٧٨٩\";\n  let normalized = text.replace(/[٠-٩]/g, (d) => arabicIndicDigits.indexOf(d));\n\n  const match = normalized.match(/\\d+/);\n  if (match) {\n    const num = parseInt(match[0], 10);\n    if (!isNaN(num) && num > 0) return num;\n  }\n  return null;\n}\n\n// ---------- 3) دالة استخراج العدد من كلمات عربية ----------\nfunction extractWordNumber(text) {\n  if (!text) return null;\n\n  // تنظيف النص: إزالة \"ال\" التعريف، علامات تشكيل، مسافات زائدة\n  const cleaned = text\n    .trim()\n    .replace(/^ال/, \"\")\n    .replace(/[\\u064B-\\u0652]/g, \"\"); // إزالة التشكيل\n\n  // مطابقة مباشرة\n  if (ARABIC_NUMBER_MAP.hasOwnProperty(cleaned)) {\n    return ARABIC_NUMBER_MAP[cleaned];\n  }\n\n  // مطابقة جزئية (في حال احتوى النص على كلمة الرقم ضمن جملة أطول)\n  for (const [word, value] of Object.entries(ARABIC_NUMBER_MAP)) {\n    if (cleaned.includes(word)) {\n      return value;\n    }\n  }\n\n  return null;\n}\n\n// ---------- 4) الدالة الرئيسية لحساب delete_count ----------\nfunction resolveDeleteCount(parsed) {\n  const scope = parsed.delete_scope;\n  const raw = (parsed.delete_count_raw || \"\").trim();\n  const searchTerm = parsed.delete_search_term;\n\n  // الحالة أ: الحذف بالاسم/الموضوع — العدد = عدد المصطلحات المفصولة بفاصلة\n  if (scope === \"by_search_term\" && searchTerm) {\n    const terms = searchTerm\n      .split(/[,،]/)\n      .map((t) => t.trim())\n      .filter((t) => t.length > 0);\n    return Math.max(terms.length, 1);\n  }\n\n  // الحالة ب: \"احذف آخر قرار\" بدون عدد\n  if (scope === \"single_last\" || !raw) {\n    return 1;\n  }\n\n  // الحالة ج: \"آخر N قرار/قرارات\" — جرب الأرقام الرقمية أولاً\n  const digitNum = extractDigitNumber(raw);\n  if (digitNum !== null) return digitNum;\n\n  // ثم جرب الكلمات العربية\n  const wordNum = extractWordNumber(raw);\n  if (wordNum !== null) return wordNum;\n\n  // الحالة الافتراضية: تعذر تحديد العدد بوضوح\n  return 1;\n}\n\n// ---------- 5) دالة استخراج نية إرسال الإيميل (boolean حتمي) ----------\n// قاعدة العمل: send_email = true فقط لو المستخدم طلب صراحة (بدي ايميل / ابعتلي ايميل / اي صيغة تأكيد واضحة)\n// أي غموض أو سكوت = false (الافتراضي الآمن، عشان ما نبعت ايميلات غير مطلوبة)\nconst EMAIL_POSITIVE_PATTERNS = [\n  \"بدي ايميل\",\n  \"بدي إيميل\",\n  \"ابعتلي ايميل\",\n  \"ابعتلي إيميل\",\n  \"ابعت ايميل\",\n  \"ابعت إيميل\",\n  \"بعتلي ايميل\",\n  \"ارسل ايميل\",\n  \"أرسل إيميل\",\n  \"ارسلي ايميل\",\n  \"ايميلي\",\n  \"إيميلي\",\n  \"send email\",\n  \"email me\",\n];\n\nconst EMAIL_NEGATIVE_PATTERNS = [\n  \"لا تبعت\",\n  \"ما بدي ايميل\",\n  \"ما بدي إيميل\",\n  \"بدون ايميل\",\n  \"بلا ايميل\",\n  \"no email\",\n];\n\nfunction resolveSendEmail(rawValue) {\n  // قبول boolean مباشر إذا أرسله AI Agent مسبقاً كـ boolean حقيقي\n  if (typeof rawValue === \"boolean\") return rawValue;\n\n  if (rawValue === null || rawValue === undefined) return false;\n\n  const text = String(rawValue).trim().toLowerCase();\n  if (text.length === 0) return false;\n\n  // فحص النفي أولاً (أولوية أعلى، لتجنب \"ما بدي ايميل\" يصير true بسبب وجود كلمة \"ايميل\")\n  for (const neg of EMAIL_NEGATIVE_PATTERNS) {\n    if (text.includes(neg)) return false;\n  }\n\n  for (const pos of EMAIL_POSITIVE_PATTERNS) {\n    if (text.includes(pos)) return true;\n  }\n\n  // فحص أضيق لـ \"نعم\"/\"yes\"/\"true\" بدون تضارب مع \"لا\"/كلمات أخرى تحتوي \"نعم\" كجزء (نادر بالعربي لكن للأمان)\n  if (text === \"نعم\" || text === \"yes\" || text === \"true\" || text === \"1\") {\n    return true;\n  }\n  if (text === \"لا\" || text === \"no\" || text === \"false\" || text === \"0\") {\n    return false;\n  }\n\n  // الافتراضي الآمن: لا إرسال إيميل بدون طلب صريح وواضح\n  return false;\n}\n\n// ---------- 6) دالة تجهيز الأقسام الأربعة (Sheets Routing) ----------\n// تقبل message كـ object جاهز أو نص JSON يحتاج parse\nconst SHEET_KEYS = [\n  \"metadata_context\",\n  \"quantitative_scoring\",\n  \"qualitative_analysis_diagnosis\",\n  \"execution_recommendation\",\n];\n\nfunction resolveSheets(messageInput) {\n  let messageObj;\n\n  if (typeof messageInput === \"string\") {\n    try {\n      messageObj = JSON.parse(messageInput);\n    } catch (err) {\n      // النص ليس JSON صالحاً — رجّع خطأ واضح بدل تخمين تقسيم خاطئ\n      return {\n        error: \"تعذر تحليل message كـ JSON منظم بالأقسام الأربعة\",\n        raw_message: messageInput,\n      };\n    }\n  } else if (typeof messageInput === \"object\" && messageInput !== null) {\n    messageObj = messageInput;\n  } else {\n    return {\n      error: \"message غير موجود أو بصيغة غير متوقعة\",\n      raw_message: messageInput,\n    };\n  }\n\n  const sheets = {};\n  const missingKeys = [];\n\n  for (const key of SHEET_KEYS) {\n    if (messageObj.hasOwnProperty(key)) {\n      sheets[key] = messageObj[key];\n    } else {\n      sheets[key] = null;\n      missingKeys.push(key);\n    }\n  }\n\n  if (missingKeys.length > 0) {\n    sheets._warning = `حقول ناقصة من AI Agent: ${missingKeys.join(\", \")}`;\n  }\n\n  return sheets;\n}\n\n// ---------- 7) نقطة الدخول داخل n8n Code Node ----------\n\n// ملاحظة: عدّل المسار حسب شكل خرج AI Agent node عندك.\nconst rawOutput = $input.item.json.output ?? $input.item.json.text ?? $input.item.json;\nconst hasMessageOrEmail =\n  $input.item.json.message !== undefined || $input.item.json.send_email !== undefined;\n\n// ===== المسار B: رسالة منظمة (4 فئات) + نية إيميل =====\n// يُفعّل هذا المسار إذا كان $json.message أو $json.send_email موجودين في المدخل.\nif (hasMessageOrEmail) {\n  const sheets = resolveSheets($input.item.json.message);\n  const send_email = resolveSendEmail($input.item.json.send_email);\n\n  return [\n    {\n      json: {\n        sheets,\n        send_email,\n      },\n    },\n  ];\n}\n\n// ===== المسار A: نية حذف (delete_count) =====\nlet parsed;\n\ntry {\n  parsed = typeof rawOutput === \"string\" ? JSON.parse(rawOutput) : rawOutput;\n} catch (err) {\n  // فشل تحليل JSON من LLM — رجّع خطأ واضح بدل كسر الـ workflow\n  return [\n    {\n      json: {\n        action_type: \"error\",\n        error: \"فشل تحليل خرج AI Agent كـ JSON\",\n        raw_output: rawOutput,\n      },\n    },\n  ];\n}\n\nif (parsed.action_type !== \"delete\") {\n  // لا توجد نية حذف — مرّر كما هو\n  return [{ json: parsed }];\n}\n\nconst delete_count = resolveDeleteCount(parsed);\n\nconst result = {\n  action_type: \"delete\",\n  target_decision_id: parsed.target_decision_id ?? null,\n  delete_search_term: parsed.delete_search_term ?? null,\n  delete_count: delete_count,\n};\n\nreturn [{ json: result }];\n"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2848,
+        -304
+      ],
+      "id": "76b36b49-dfaa-44ad-a15b-c99bcda292b0",
+      "name": "Code in JavaScript3"
+    },
+    {
+      "parameters": {
+        "documentId": {
+          "__rl": true,
+          "value": "1PxNA1-3gD350MTcTtqd5uViJ8SO0uX-WwnIigjleUZw",
+          "mode": "list",
+          "cachedResultName": "Automated Decision Support System",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1PxNA1-3gD350MTcTtqd5uViJ8SO0uX-WwnIigjleUZw/edit?usp=drivesdk"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "gid=0",
+          "mode": "list",
+          "cachedResultName": "Metadata & Context",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1PxNA1-3gD350MTcTtqd5uViJ8SO0uX-WwnIigjleUZw/edit#gid=0"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheetsTool",
+      "typeVersion": 4.7,
+      "position": [
+        2240,
+        256
+      ],
+      "id": "4ec0347b-5ce1-40a7-a2aa-15fd8088edc2",
+      "name": "Metadata & Context Get Row1",
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "qPcYFvcEFGVnuJDH",
+          "name": "Google Sheets account 2"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "documentId": {
+          "__rl": true,
+          "value": "1PxNA1-3gD350MTcTtqd5uViJ8SO0uX-WwnIigjleUZw",
+          "mode": "list",
+          "cachedResultName": "Automated Decision Support System",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1PxNA1-3gD350MTcTtqd5uViJ8SO0uX-WwnIigjleUZw/edit?usp=drivesdk"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": 651189005,
+          "mode": "list",
+          "cachedResultName": "Execution & Recommendation",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1PxNA1-3gD350MTcTtqd5uViJ8SO0uX-WwnIigjleUZw/edit#gid=651189005"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheetsTool",
+      "typeVersion": 4.7,
+      "position": [
+        2400,
+        256
+      ],
+      "id": "3e4e24d9-f76a-4df9-8355-bb66df32716b",
+      "name": "Execution & Recommendation Get row1",
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "qPcYFvcEFGVnuJDH",
+          "name": "Google Sheets account 2"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "descriptionType": "manual",
+        "toolDescription": "Use this tool to save and append the core metadata, decision text, and context of the strategic choices into the Google Sheet.",
+        "documentId": {
+          "__rl": true,
+          "value": "1PxNA1-3gD350MTcTtqd5uViJ8SO0uX-WwnIigjleUZw",
+          "mode": "list",
+          "cachedResultName": "Automated Decision Support System",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1PxNA1-3gD350MTcTtqd5uViJ8SO0uX-WwnIigjleUZw/edit?usp=drivesdk"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": 1932691692,
+          "mode": "list",
+          "cachedResultName": "Quantitative Scoring",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1PxNA1-3gD350MTcTtqd5uViJ8SO0uX-WwnIigjleUZw/edit#gid=1932691692"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheetsTool",
+      "typeVersion": 4.7,
+      "position": [
+        2560,
+        256
+      ],
+      "id": "a61716a5-5ab0-4913-b49b-45e5e9fe23ca",
+      "name": "Quantitative scoring_Get_Row1",
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "qPcYFvcEFGVnuJDH",
+          "name": "Google Sheets account 2"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "documentId": {
+          "__rl": true,
+          "value": "1PxNA1-3gD350MTcTtqd5uViJ8SO0uX-WwnIigjleUZw",
+          "mode": "list",
+          "cachedResultName": "Automated Decision Support System",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1PxNA1-3gD350MTcTtqd5uViJ8SO0uX-WwnIigjleUZw/edit?usp=drivesdk"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": 1917721808,
+          "mode": "list",
+          "cachedResultName": "Qualitative Analysis & Diagnosis",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1PxNA1-3gD350MTcTtqd5uViJ8SO0uX-WwnIigjleUZw/edit#gid=1917721808"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheetsTool",
+      "typeVersion": 4.7,
+      "position": [
+        2720,
+        256
+      ],
+      "id": "007c73f2-934c-4bd1-8341-49dbedeadb8f",
+      "name": "Qualitative analysis & Diagnosis_get_row1",
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "qPcYFvcEFGVnuJDH",
+          "name": "Google Sheets account 2"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.chatTrigger",
+      "typeVersion": 1.4,
+      "position": [
+        -576,
+        1488
+      ],
+      "id": "1e206d48-2fde-496b-8cc3-d0ef04efd0c1",
+      "name": "When chat message received",
+      "webhookId": "903ab748-d04b-41b5-bbac-2f6f5d483989"
+    },
+    {
+      "parameters": {
+        "contextWindowLength": 1
+      },
+      "type": "@n8n/n8n-nodes-langchain.memoryBufferWindow",
+      "typeVersion": 1.4,
+      "position": [
+        -192,
+        1680
+      ],
+      "id": "42d9de0f-d4ab-47a7-9ad1-4572d68bc4da",
+      "name": "Simple Memory2"
+    },
+    {
+      "parameters": {
+        "modelName": "models/gemini-3.1-flash-lite",
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatGoogleGemini",
+      "typeVersion": 1.1,
+      "position": [
+        -368,
+        1664
+      ],
+      "id": "d5eb5f72-0bcb-4259-a74c-efa365871642",
+      "name": "Google Gemini Chat Model3",
+      "credentials": {
+        "googlePalmApi": {
+          "id": "5bQnUFfdkzbJs3Ln",
+          "name": "Google Gemini(PaLM) Api account 2"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "modelName": "models/gemini-3.1-flash-lite",
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatGoogleGemini",
+      "typeVersion": 1.1,
+      "position": [
+        64,
+        1840
+      ],
+      "id": "92fa37f5-1c3b-40ed-819d-9dd2ae0c57d0",
+      "name": "Google Gemini Chat Model4",
+      "credentials": {
+        "googlePalmApi": {
+          "id": "5bQnUFfdkzbJs3Ln",
+          "name": "Google Gemini(PaLM) Api account 2"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// نقوم بجلب النص الخارج من نود الـ AI Agent\n// ملاحظة: تأكد من تغيير اسم الـ Node إذا كان مختلفاً لديك (مثلاً 'AI Agent')\nconst rawText = $input.item.json.output || $input.item.json.text;\nconst uniqueId = Math.floor(1000 + Math.random() * 9000);\ntry {\n    // تحويل النص إلى كائن JSON صالح\n    const parsedData = JSON.parse(rawText.trim());\n\n    // إرجاع البيانات بشكل منظم للنودز التالية\n    return [{\n        json: {\n          id: uniqueId,\n            action_type: parsedData.action_type || \"unclear\",\n            delete_search_term: parsedData.delete_search_term || null,\n            send_email: parsedData.send_email || false,\n            \n            // بيانات الجدول (إذا كانت عملية تحليل)\n            decision: parsedData.decision_data ? parsedData.decision_data.decision : null,\n            classification:parsedData.decision_data ?\n              parsedData.decision_data.decision: null,\n            time: parsedData.decision_data ? parsedData.decision_data.time : null,\n            priority: parsedData.decision_data ? parsedData.decision_data.priority : null,\n            description: parsedData.decision_data ? parsedData.decision_data.description : null\n        }\n    }];\n\n} catch (error) {\n    // في حال حدوث خطأ غير متوقع في التحليل، يتم تمرير الخطأ لتجنب توقف الـ Workflow\n    return [{\n        json: {\n            action_type: \"unclear\",\n            error: \"فشل في تحليل الـ JSON: \" + error.message,\n            raw_output: rawText\n        }\n    }];\n}"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        208,
+        1488
+      ],
+      "id": "cc2b10fd-654e-4fa5-baaa-87d38cb3bf2f",
+      "name": "Code in JavaScript4"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 3
+          },
+          "conditions": [
+            {
+              "id": "044296d7-aaad-46a2-a6e3-03fab1a37224",
+              "leftValue": "={{ $json.raw_output.action_type }}",
+              "rightValue": "delete",
+              "operator": {
+                "type": "string",
+                "operation": "notEquals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        448,
+        1152
+      ],
+      "id": "bdb4d78e-9892-4087-9810-af1099571358",
+      "name": "If4"
+    },
+    {
+      "parameters": {
+        "documentId": {
+          "__rl": true,
+          "value": "1PxNA1-3gD350MTcTtqd5uViJ8SO0uX-WwnIigjleUZw",
+          "mode": "list",
+          "cachedResultName": "Automated Decision Support System",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1PxNA1-3gD350MTcTtqd5uViJ8SO0uX-WwnIigjleUZw/edit?usp=drivesdk"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": 1183008931,
+          "mode": "list",
+          "cachedResultName": "Descisions",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1PxNA1-3gD350MTcTtqd5uViJ8SO0uX-WwnIigjleUZw/edit#gid=1183008931"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheetsTool",
+      "typeVersion": 4.7,
+      "position": [
+        -64,
+        1680
+      ],
+      "id": "a77ba4c8-1c5d-452d-9666-2459c483fe82",
+      "name": "Metadata & Context Get Row2",
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "qPcYFvcEFGVnuJDH",
+          "name": "Google Sheets account 2"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "hasOutputParser": true,
+        "options": {
+          "systemMessage": "=أنت محرك تحليل نية ضمن نظام دعم قرارات آلي (Automated Decision Support System).\nمهمتك الوحيدة هي تحليل طلب المستخدم وإخراج كائن JSON خام وصالح للتحليل (parseable) مباشرة، بدون أي نص تفسيري خارج الكائن، وبدون استخدام علامات الاقتباس البرمجية الخاصة بالـ Markdown (مثل ```).\n\n=====================================================================\nالبنية الأساسية للإخراج (JSON الهيكل المتوقع):\n=====================================================================\n{\n  \"action_type\": \"analyze\" | \"delete\" | \"unclear\" | \"update\",\n  \"delete_search_term\": \"<نص البحث أو اسم القرار المراد حذفه>\" | null,\n  \"decision_data\": {\n    \"decision\": \"<عنوان أو موضوع القرار>\",\n    \"classification\":\"<تصنيف القرار>\",\n    \"time\": \"<التاريخ بصيغة YYYY-MM-DD فقط بناءً على تاريخ اليوم 2026-06-28 أو التاريخ المذكور>\",\n    \"priority\": \"عالية\" | \"متوسطة\" | \"قليلة\",\n    \"description\": \"<وصف عام وموجز للقرار وتحليله>\"\n  } | null,\n  \"send_email\": true | false\n}\n\n=====================================================================\nقواعد المعالجة الحاسمة:\n=====================================================================\n1. حقل إرسال الإيميل (send_email):\n   - يتم تعيينه إلى true فوراً وبشكل صريح (Boolean) إذا طلب المستخدم إرسال المخرجات أو تأكيد الحذف إلى البريد الإلكتروني، أو عبّر عن ذلك بأي صيغة (مثل: \"ابعثلي ايميل\"، \"أرسله لبريدي\"، \"نعم ارسله\").\n   - يتم تعيينه إلى false في حال غياب أي ذكر للإيميل.\n\n2. حقل البيانات (decision_data):\n   - إذا كانت العملية \"تحليل قرار\" (action_type = \"analyze\")، قم بملء الحقول الأربعة بناءً على الأعمدة الموضحة في جدول البيانات:\n     * decision: موضوع القرار الأساسي.\n     * classification: تنصيف القرار بناء على تصنيف عالمي\n     * time: استخرج أو استنتج تاريخ اليوم الحالي بالصيغة المحددة (مثال: 2026-06-28).\n     * priority: حدد الأولوية بدقة من بين الخيارات الثلاثة فقط (عالية، متوسطة، قليلة).\n     * description: اكتب وصفاً عاماً وتحليلياً للقرار.\n   - إذا كانت العملية \"حذف\" (action_type = \"delete\")، اجعل قيمة decision_data بالكامل: null.\n\n3. طلبات الحذف (Delete Intents):\n   - عند طلب حذف قرار معين، اجعل action_type = \"delete\".\n   - استخرج الكلمة المفتاحية أو اسم القرار المراد حذفه وضعه في حقل delete_search_term.\n\n4. الـ action_type:\n   - اختر \"analyze\" إذا كان المستخدم يطرح قراراً جديداً بالكامل لتحليله.\n   - اختر \"delete\" إذا طلب المستخدم حذف قرار سابق.\n   - اختر \"update\" إذا طلب المستخدم تعديل أو تغيير تفاصيل قرار موجود مسبقاً (مثل: \"عدل أولوية قرار الرياضة\"، \"غير وصف القرار الفلاني\").\n\n5. عند التعديل (update):\n   - ضع اسم القرار المراد تعديله في حقل delete_search_term (ليتم استخدامه للبحث عن الصف في الجدول).\n   - ضع القيم الجديدة التي طلب المستخدم تغييرها في حقولها المناسبة (مثل priority أو description).\n   - الحقول التي لم يطلب المستخدم تعديلها، اترك قيمتها كما هي أو فارغة (null).\n\n=====================================================================\nنص المستخدم الحالي المعني بالتحليل:"
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 3.1,
+      "position": [
+        -176,
+        1488
+      ],
+      "id": "1d1fec3a-0b1d-4cce-8b4e-c1a5d89ce1d1",
+      "name": "AI main",
+      "alwaysOutputData": false
+    },
+    {
+      "parameters": {
+        "schemaType": "manual",
+        "inputSchema": "{\n  \"type\": \"object\",\n  \"properties\": {\n    \"action_type\": {\n  \"type\": \"string\",\n  \"enum\": [\"analyze\", \"delete\", \"update\", \"unclear\"],\n  \"description\": \"نوع العملية: تحليل قرار جديد، حذف قرار، تعديل قرار موجود، أو غير واضح.\"\n  },\n    \"delete_search_term\": {\n      \"type\": \"string\",\n      \"description\": \"اسم أو موضوع القرار المراد حذفه في حال كانت العملية delete، وإلا اتركها فارغة.\"\n    },\n    \"decision\": {\n      \"type\": \"string\",\n      \"description\": \"موضوع القرار الأساسي (في حال عملية analyze).\"\n    },\n    \"Classification\": {\n      \"type\": \"string\",\n      \"description\": \"اسم تصنيف بناء على تقييم عالمي\"\n    },\n    \"time\": {\n      \"type\": \"string\",\n      \"description\": \"التاريخ الحالي بصيغة YYYY-MM-DD فقط (تاريخ اليوم هو 2026-06-28).\"\n    },\n    \"priority\": {\n      \"type\": \"string\",\n      \"enum\": [\"عالية\", \"متوسطة\", \"قليلة\"],\n      \"description\": \"درجة أولوية القرار بناءً على معطيات المستخدم.\"\n    },\n    \"description\": {\n      \"type\": \"string\",\n      \"description\": \"وصف عام وموجز للقرار مع تحليل سريع ومباشر له.\"\n    },\n    \"send_email\": {\n      \"type\": \"boolean\",\n      \"description\": \"يتم تعيينها كـ true إذا طلب المستخدم صراحة أو لمح برغبته في إرسال إيميل، وإلا false.\"\n    }\n  },\n  \"required\": [\"action_type\", \"send_email\"]\n}",
+        "autoFix": true
+      },
+      "type": "@n8n/n8n-nodes-langchain.outputParserStructured",
+      "typeVersion": 1.3,
+      "position": [
+        64,
+        1680
+      ],
+      "id": "608772d5-5ade-4fe8-bfc3-843a92f9fd6e",
+      "name": "Structured Output Parser1",
+      "alwaysOutputData": true
+    },
+    {
+      "parameters": {
+        "operation": "appendOrUpdate",
+        "documentId": {
+          "__rl": true,
+          "value": "1PxNA1-3gD350MTcTtqd5uViJ8SO0uX-WwnIigjleUZw",
+          "mode": "list",
+          "cachedResultName": "Automated Decision Support System",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1PxNA1-3gD350MTcTtqd5uViJ8SO0uX-WwnIigjleUZw/edit?usp=drivesdk"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": 1183008931,
+          "mode": "list",
+          "cachedResultName": "Descisions",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1PxNA1-3gD350MTcTtqd5uViJ8SO0uX-WwnIigjleUZw/edit#gid=1183008931"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "Decision": "={{ $json.raw_output.decision }}",
+            "Time": "={{ $json.raw_output.time }}",
+            "Priority": "={{ $json.raw_output.priority }}",
+            "Description": "={{ $json.raw_output.description }}",
+            "ID ": "==ARRAYFORMULA(IF(ISBLANK(B2:B), \"\", ROW(B2:B)-1))",
+            "Classification": "={{ $json.raw_output.Classification }}"
+          },
+          "matchingColumns": [
+            "ID "
+          ],
+          "schema": [
+            {
+              "id": "ID ",
+              "displayName": "ID ",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "Decision",
+              "displayName": "Decision",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Classification",
+              "displayName": "Classification",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "Time",
+              "displayName": "Time",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Priority",
+              "displayName": "Priority",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Description",
+              "displayName": "Description",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        752,
+        1376
+      ],
+      "id": "aa42c611-b7a2-45ec-981b-6bcdebeebf51",
+      "name": "Append or update row in sheet",
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "qPcYFvcEFGVnuJDH",
+          "name": "Google Sheets account 2"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "sendTo": "Moathhazeem661@gmail.com",
+        "subject": "={{ $json.Decision }}",
+        "message": "=<!DOCTYPE html>\n<html lang=\"ar\" dir=\"rtl\">\n<head>\n    <meta charset=\"UTF-8\">\n    <meta name=\"viewport\" content=\"width=device-width, initial-scale=1.0\">\n    <title>تقرير تحليل القرار</title>\n    <style>\n        /* تحسينات استجابة التصميم على الهواتف المحمولة */\n        @media only screen and (max-width: 600px) {\n            .container {\n                width: 100% !important;\n                border-radius: 0 !important;\n            }\n            .header {\n                padding: 20px !important;\n            }\n            .header h1 {\n                font-size: 20px !important;\n            }\n            .content {\n                padding: 20px !important;\n            }\n            .content h2 {\n                font-size: 16px !important;\n            }\n            .detail-label, .detail-value {\n                font-size: 14px !important;\n            }\n        }\n    </style>\n</head>\n<body style=\"margin: 0; padding: 0; background-color: #f4f6f9; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; direction: rtl; text-align: right; -webkit-text-size-adjust: 100%; -ms-text-size-adjust: 100%;\">\n    <table width=\"100%\" border=\"0\" cellspacing=\"0\" cellpadding=\"0\" style=\"background-color: #f4f6f9; padding: 20px 0;\">\n        <tr>\n            <td align=\"center\" style=\"padding: 0 10px;\">\n                <table class=\"container\" width=\"100%\" border=\"0\" cellspacing=\"0\" cellpadding=\"0\" style=\"max-width: 600px; background-color: #ffffff; border-radius: 8px; overflow: hidden; box-shadow: 0 4px 10px rgba(0,0,0,0.05); border-collapse: collapse;\">\n                    <tr>\n                        <td class=\"header\" style=\"background-color: #4f46e5; padding: 30px; text-align: center;\">\n                            <h1 style=\"color: #ffffff; margin: 0; font-size: 24px; font-weight: 600; line-height: 1.4;\">نظام دعم القرارات الآلي</h1>\n                            <p style=\"color: #e0e7ff; margin: 5px 0 0 0; font-size: 14px;\">تم توليد تقرير التحليل بنجاح</p>\n                        </td>\n                    </tr>\n                    <tr>\n                        <td class=\"content\" style=\"padding: 30px;\">\n                            <h2 style=\"color: #1f2937; margin-top: 0; margin-bottom: 20px; font-size: 18px; border-bottom: 2px solid #f3f4f6; padding-bottom: 10px; font-weight: 600;\">تفاصيل القرار المضاف:</h2>\n                            \n                            <table width=\"100%\" border=\"0\" cellspacing=\"0\" cellpadding=\"0\" style=\"margin-bottom: 20px; border-collapse: collapse;\">\n                                <tr>\n                                    <td class=\"detail-label\" width=\"30%\" style=\"padding: 10px 0; color: #4b5563; font-weight: bold; font-size: 15px; vertical-align: top;\">القرار:</td>\n                                    <td class=\"detail-value\" style=\"padding: 10px 0; color: #111827; font-size: 15px; word-break: break-word;\">{{ $json.Decision }}</td>\n                                </tr>\n                                <tr>\n                                    <td class=\"detail-label\" style=\"padding: 10px 0; color: #4b5563; font-weight: bold; font-size: 15px; vertical-align: top;\">التصنيف:</td>\n                                    <td class=\"detail-value\" style=\"padding: 10px 0; color: #111827; font-size: 15px; word-break: break-word;\">{{ $json.Classification }}</td>\n                                </tr>\n                                <tr>\n                                    <td class=\"detail-label\" style=\"padding: 10px 0; color: #4b5563; font-weight: bold; font-size: 15px; vertical-align: top;\">التاريخ:</td>\n                                    <td class=\"detail-value\" style=\"padding: 10px 0; color: #111827; font-size: 15px; word-break: break-word;\">{{ $json.Time }}</td>\n                                </tr>\n                                <tr>\n                                    <td class=\"detail-label\" style=\"padding: 10px 0; color: #4b5563; font-weight: bold; font-size: 15px; vertical-align: top;\">الأولوية:</td>\n                                    <td class=\"detail-value\" style=\"padding: 10px 0; font-size: 15px;\">\n                                        <span style=\"background-color: #fef3c7; color: #d97706; padding: 4px 12px; border-radius: 50px; font-weight: bold; font-size: 13px; display: inline-block;\">{{ $json.Priority }}</span>\n                                    </td>\n                                </tr>\n                            </table>\n\n                            <div style=\"background-color: #f9fafb; border-right: 4px solid #4f46e5; padding: 15px; border-radius: 4px; margin-top: 10px;\">\n                                <h3 style=\"margin: 0 0 8px 0; color: #1f2937; font-size: 15px; font-weight: 600;\">الوصف والتحليل العام:</h3>\n                                <p style=\"margin: 0; color: #4b5563; font-size: 14px; line-height: 1.6; word-break: break-word;\">{{ $json.Description }}</p>\n                            </div>\n                        </td>\n                    </tr>\n                    <tr>\n                        <td style=\"background-color: #f9fafb; padding: 20px; text-align: center; border-top: 1px solid #f3f4f6;\">\n                            <p style=\"margin: 0; color: #9ca3af; font-size: 12px; line-height: 1.5;\">هذا الإيميل تم توليده تلقائياً بواسطة Learnova ADSS Agent.</p>\n                        </td>\n                    </tr>\n                </table>\n            </td>\n        </tr>\n    </table>\n</body>\n</html>",
+        "options": {
+          "appendAttribution": false
+        }
+      },
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.2,
+      "position": [
+        960,
+        1376
+      ],
+      "id": "3fe230b7-1d4f-4250-bb79-df18c1f354f0",
+      "name": "Send a message8",
+      "webhookId": "8cf22288-c594-4ad9-bfcc-07532301d363",
+      "credentials": {
+        "gmailOAuth2": {
+          "id": "9NcBOjKo4wAbWWGE",
+          "name": "Gmail account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "sendTo": "Moathhazeem661@gmail.com",
+        "subject": "={{ $('Get row(s) in sheet5').item.json.Decision }}",
+        "message": "=<!DOCTYPE html>\n<html lang=\"ar\" dir=\"rtl\">\n<head>\n    <meta charset=\"UTF-8\">\n    <meta name=\"viewport\" content=\"width=device-width, initial-scale=1.0\">\n    <title>تأكيد حذف قرار</title>\n    <style>\n        /* تحسينات الشاشات الصغيرة (الجوالات) */\n        @media only screen and (max-width: 600px) {\n            .container {\n                width: 100% !important;\n                border-radius: 0 !important;\n            }\n            .header {\n                padding: 20px !important;\n            }\n            .header h1 {\n                font-size: 20px !important;\n            }\n            .content {\n                padding: 20px !important;\n            }\n            .content h2 {\n                font-size: 16px !important;\n            }\n            .content p {\n                font-size: 14px !important;\n            }\n        }\n    </style>\n</head>\n<body style=\"margin: 0; padding: 0; background-color: #f4f6f9; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; direction: rtl; text-align: right; -webkit-text-size-adjust: 100%; -ms-text-size-adjust: 100%;\">\n    <table width=\"100%\" border=\"0\" cellspacing=\"0\" cellpadding=\"0\" style=\"background-color: #f4f6f9; padding: 20px 0;\">\n        <tr>\n            <td align=\"center\" style=\"padding: 0 10px;\">\n                <table class=\"container\" width=\"100%\" border=\"0\" cellspacing=\"0\" cellpadding=\"0\" style=\"max-width: 600px; background-color: #ffffff; border-radius: 8px; overflow: hidden; box-shadow: 0 4px 10px rgba(0,0,0,0.05); border-collapse: collapse;\">\n                    <tr>\n                        <td class=\"header\" style=\"background-color: #dc2626; padding: 30px; text-align: center;\">\n                            <h1 style=\"color: #ffffff; margin: 0; font-size: 24px; font-weight: 600; line-height: 1.4;\">نظام دعم القرارات الآلي</h1>\n                            <p style=\"color: #fee2e2; margin: 5px 0 0 0; font-size: 14px;\">إشعار بحذف بيانات</p>\n                        </td>\n                    </tr>\n                    <tr>\n                        <td class=\"content\" style=\"padding: 30px;\">\n                            <h2 style=\"color: #1f2937; margin-top: 0; margin-bottom: 15px; font-size: 18px; font-weight: 600;\">تم حذف القرار بنجاح</h2>\n                            <p style=\"color: #4b5563; font-size: 15px; line-height: 1.6; margin-bottom: 25px;\">\n                                نود إشعارك بأنه تم تنفيذ طلبك بحذف القرار التالي من قاعدة البيانات وجداول العمل بنجاح.\n                            </p>\n                            \n                            <div style=\"background-color: #fef2f2; border-right: 4px solid #dc2626; padding: 15px; border-radius: 4px;\">\n                                <span style=\"color: #991b1b; font-weight: bold; font-size: 14px; display: block; margin-bottom: 5px;\">القرار المحذوف:</span>\n                                <strong style=\"color: #111827; font-size: 16px; word-break: break-word;\">{{ $('Get row(s) in sheet5').item.json.Decision }}</strong>\n                            </div>\n                        </td>\n                    </tr>\n                    <tr>\n                        <td style=\"background-color: #f9fafb; padding: 20px; text-align: center; border-top: 1px solid #f3f4f6;\">\n                            <p style=\"margin: 0; color: #9ca3af; font-size: 12px; line-height: 1.5;\">إذا لم تقم بهذا الإجراء بنفسك، يرجى مراجعة سجلات النظام فوراً.</p>\n                        </td>\n                    </tr>\n                </table>\n            </td>\n        </tr>\n    </table>\n</body>\n</html>",
+        "options": {
+          "appendAttribution": false
+        }
+      },
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.2,
+      "position": [
+        1184,
+        1584
+      ],
+      "id": "a43c5e35-ecac-4b6c-a046-9f52a914054c",
+      "name": "Send a message9",
+      "webhookId": "8cf22288-c594-4ad9-bfcc-07532301d363",
+      "credentials": {
+        "gmailOAuth2": {
+          "id": "9NcBOjKo4wAbWWGE",
+          "name": "Gmail account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "delete",
+        "documentId": {
+          "__rl": true,
+          "value": "1PxNA1-3gD350MTcTtqd5uViJ8SO0uX-WwnIigjleUZw",
+          "mode": "list",
+          "cachedResultName": "Automated Decision Support System",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1PxNA1-3gD350MTcTtqd5uViJ8SO0uX-WwnIigjleUZw/edit?usp=drivesdk"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": 1183008931,
+          "mode": "list",
+          "cachedResultName": "Descisions",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1PxNA1-3gD350MTcTtqd5uViJ8SO0uX-WwnIigjleUZw/edit#gid=1183008931"
+        }
+      },
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        976,
+        1584
+      ],
+      "id": "e5362ba9-57ba-43c7-bc7e-bf68a304eda8",
+      "name": "Delete rows or columns from sheet5",
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "qPcYFvcEFGVnuJDH",
+          "name": "Google Sheets account 2"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "documentId": {
+          "__rl": true,
+          "value": "1PxNA1-3gD350MTcTtqd5uViJ8SO0uX-WwnIigjleUZw",
+          "mode": "list",
+          "cachedResultName": "Automated Decision Support System",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1PxNA1-3gD350MTcTtqd5uViJ8SO0uX-WwnIigjleUZw/edit?usp=drivesdk"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": 1183008931,
+          "mode": "list",
+          "cachedResultName": "Descisions",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1PxNA1-3gD350MTcTtqd5uViJ8SO0uX-WwnIigjleUZw/edit#gid=1183008931"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        752,
+        1584
+      ],
+      "id": "ee7e5837-0353-4dfb-8bf8-ab3f92f0cdab",
+      "name": "Get row(s) in sheet5",
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "qPcYFvcEFGVnuJDH",
+          "name": "Google Sheets account 2"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "rules": {
+          "values": [
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 3
+                },
+                "conditions": [
+                  {
+                    "leftValue": "={{ $json.raw_output.action_type }}",
+                    "rightValue": "analyze",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    },
+                    "id": "80c7dc5e-2088-4596-a314-fac591a709c7"
+                  }
+                ],
+                "combinator": "and"
+              }
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 3
+                },
+                "conditions": [
+                  {
+                    "id": "653aec25-ba0f-4381-9d83-f58def4511db",
+                    "leftValue": "={{ $json.raw_output.action_type }}",
+                    "rightValue": "delete",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals",
+                      "name": "filter.operator.equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              }
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 3
+                },
+                "conditions": [
+                  {
+                    "id": "bb916f15-8478-4500-ba23-89090eefa500",
+                    "leftValue": "={{ $json.raw_output.action_type }}",
+                    "rightValue": "update",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals",
+                      "name": "filter.operator.equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              }
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.switch",
+      "typeVersion": 3.4,
+      "position": [
+        384,
+        1488
+      ],
+      "id": "2181e3f5-474b-4843-8a1f-160f0a1e398d",
+      "name": "Switch1"
+    },
+    {
+      "parameters": {
+        "sendTo": "Moathhazeem661@gmail.com",
+        "subject": "={{ $('Get row(s) in sheet6').item.json.Decision }}",
+        "message": "=<!DOCTYPE html>\n<html lang=\"ar\" dir=\"rtl\">\n<head>\n    <meta charset=\"UTF-8\">\n    <meta name=\"viewport\" content=\"width=device-width, initial-scale=1.0\">\n    <title>تحديث تفاصيل القرار</title>\n    <style>\n        /* تحسينات استجابة التصميم على الهواتف المحمولة */\n        @media only screen and (max-width: 600px) {\n            .container {\n                width: 100% !important;\n                border-radius: 0 !important;\n            }\n            .header {\n                padding: 20px !important;\n            }\n            .header h1 {\n                font-size: 20px !important;\n            }\n            .content {\n                padding: 20px !important;\n            }\n            .content h2 {\n                font-size: 16px !important;\n            }\n            .detail-label, .detail-value {\n                font-size: 14px !important;\n            }\n        }\n    </style>\n</head>\n<body style=\"margin: 0; padding: 0; background-color: #f4f6f9; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; direction: rtl; text-align: right; -webkit-text-size-adjust: 100%; -ms-text-size-adjust: 100%;\">\n    <table width=\"100%\" border=\"0\" cellspacing=\"0\" cellpadding=\"0\" style=\"background-color: #f4f6f9; padding: 20px 0;\">\n        <tr>\n            <td align=\"center\" style=\"padding: 0 10px;\">\n                <table class=\"container\" width=\"100%\" border=\"0\" cellspacing=\"0\" cellpadding=\"0\" style=\"max-width: 600px; background-color: #ffffff; border-radius: 8px; overflow: hidden; box-shadow: 0 4px 10px rgba(0,0,0,0.05); border-collapse: collapse;\">\n                    <tr>\n                        <td class=\"header\" style=\"background-color: #10b981; padding: 30px; text-align: center;\">\n                            <h1 style=\"color: #ffffff; margin: 0; font-size: 24px; font-weight: 600; line-height: 1.4;\">نظام دعم القرارات الآلي</h1>\n                            <p style=\"color: #d1fae5; margin: 5px 0 0 0; font-size: 14px;\">تم تحديث بيانات القرار بنجاح</p>\n                        </td>\n                    </tr>\n                    <tr>\n                        <td class=\"content\" style=\"padding: 30px;\">\n                            <h2 style=\"color: #1f2937; margin-top: 0; margin-bottom: 20px; font-size: 18px; border-bottom: 2px solid #f3f4f6; padding-bottom: 10px; font-weight: 600;\">تفاصيل البيانات الجديدة للقرار:</h2>\n                            \n                            <table width=\"100%\" border=\"0\" cellspacing=\"0\" cellpadding=\"0\" style=\"margin-bottom: 20px; border-collapse: collapse;\">\n                                <tr>\n                                    <td class=\"detail-label\" width=\"30%\" style=\"padding: 10px 0; color: #4b5563; font-weight: bold; font-size: 15px; vertical-align: top;\">القرار المستهدف:</td>\n                                    <td class=\"detail-value\" style=\"padding: 10px 0; color: #111827; font-size: 15px; word-break: break-word;\"><strong>{{ $json.Decision }}</strong></td>\n                                </tr>\n                                <tr>\n                                    <td class=\"detail-label\" style=\"padding: 10px 0; color: #4b5563; font-weight: bold; font-size: 15px; vertical-align: top;\">التصنيف الحالي:</td>\n                                    <td class=\"detail-value\" style=\"padding: 10px 0; color: #111827; font-size: 15px; word-break: break-word;\">{{ $json.Classification }}</td>\n                                </tr>\n                                <tr>\n                                    <td class=\"detail-label\" style=\"padding: 10px 0; color: #4b5563; font-weight: bold; font-size: 15px; vertical-align: top;\">الأولوية الجديدة:</td>\n                                    <td class=\"detail-value\" style=\"padding: 10px 0; font-size: 15px;\">\n                                        <span style=\"background-color: #ecfdf5; color: #065f46; padding: 4px 12px; border-radius: 50px; font-weight: bold; font-size: 13px; display: inline-block; border: 1px solid #a7f3d0;\">{{ $json.Priority }}</span>\n                                    </td>\n                                </tr>\n                                <tr>\n                                    <td class=\"detail-label\" style=\"padding: 10px 0; color: #4b5563; font-weight: bold; font-size: 15px; vertical-align: top;\">وقت التعديل:</td>\n                                    <td class=\"detail-value\" style=\"padding: 10px 0; color: #6b7280; font-size: 14px; word-break: break-word;\">{{ $json.Time }}</td>\n                                </tr>\n                            </table>\n\n                            <div style=\"background-color: #f9fafb; border-right: 4px solid #10b981; padding: 15px; border-radius: 4px; margin-top: 10px;\">\n                                <h3 style=\"margin: 0 0 8px 0; color: #1f2937; font-size: 15px; font-weight: 600;\">الوصف والتحليل المحدث:</h3>\n                                <p style=\"margin: 0; color: #4b5563; font-size: 14px; line-height: 1.6; word-break: break-word;\">{{ $json.Description }}</p>\n                            </div>\n                        </td>\n                    </tr>\n                    <tr>\n                        <td style=\"background-color: #f9fafb; padding: 20px; text-align: center; border-top: 1px solid #f3f4f6;\">\n                            <p style=\"margin: 0; color: #9ca3af; font-size: 12px; line-height: 1.5;\">هذا الإيميل تم توليده تلقائياً إشعاراً بتحديث بياناتك في مستندات نظام Learnova ADSS.</p>\n                        </td>\n                    </tr>\n                </table>\n            </td>\n        </tr>\n    </table>\n</body>\n</html>",
+        "options": {
+          "appendAttribution": false
+        }
+      },
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.2,
+      "position": [
+        1168,
+        1808
+      ],
+      "id": "4e5dafa5-b9c1-4b55-b47f-cf0ccb13a6f7",
+      "name": "Send a message10",
+      "webhookId": "8cf22288-c594-4ad9-bfcc-07532301d363",
+      "credentials": {
+        "gmailOAuth2": {
+          "id": "9NcBOjKo4wAbWWGE",
+          "name": "Gmail account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "documentId": {
+          "__rl": true,
+          "value": "1PxNA1-3gD350MTcTtqd5uViJ8SO0uX-WwnIigjleUZw",
+          "mode": "list",
+          "cachedResultName": "Automated Decision Support System",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1PxNA1-3gD350MTcTtqd5uViJ8SO0uX-WwnIigjleUZw/edit?usp=drivesdk"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": 1183008931,
+          "mode": "list",
+          "cachedResultName": "Descisions",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1PxNA1-3gD350MTcTtqd5uViJ8SO0uX-WwnIigjleUZw/edit#gid=1183008931"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        736,
+        1808
+      ],
+      "id": "6ff949e5-0054-4d88-8c39-fd817967fb59",
+      "name": "Get row(s) in sheet6",
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "qPcYFvcEFGVnuJDH",
+          "name": "Google Sheets account 2"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "update",
+        "documentId": {
+          "__rl": true,
+          "value": "1PxNA1-3gD350MTcTtqd5uViJ8SO0uX-WwnIigjleUZw",
+          "mode": "list",
+          "cachedResultName": "Automated Decision Support System",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1PxNA1-3gD350MTcTtqd5uViJ8SO0uX-WwnIigjleUZw/edit?usp=drivesdk"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": 1183008931,
+          "mode": "list",
+          "cachedResultName": "Descisions",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1PxNA1-3gD350MTcTtqd5uViJ8SO0uX-WwnIigjleUZw/edit#gid=1183008931"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "row_number": 0,
+            "ID ": "={{ $json.row_number }}",
+            "Decision": "={{ $json.Decision }}",
+            "Classification": "={{ $json.Classification }}",
+            "Time": "={{ $json.Time }}",
+            "Priority": "={{ $json.Priority }}",
+            "Description": "={{ $json.Description }}"
+          },
+          "matchingColumns": [],
+          "schema": [
+            {
+              "id": "ID ",
+              "displayName": "ID ",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "Decision",
+              "displayName": "Decision",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "Classification",
+              "displayName": "Classification",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "Time",
+              "displayName": "Time",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "Priority",
+              "displayName": "Priority",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "Description",
+              "displayName": "Description",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "row_number",
+              "displayName": "row_number",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "number",
+              "canBeUsedToMatch": true,
+              "readOnly": true,
+              "removed": false
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        960,
+        1808
+      ],
+      "id": "898c9d4c-e62c-49aa-92f0-1e4cf4597f94",
+      "name": "Update row in sheet",
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "qPcYFvcEFGVnuJDH",
+          "name": "Google Sheets account 2"
+        }
+      }
     }
   ],
   "pinData": {},
   "connections": {
-    "When chat message received": {
-      "main": [
-        [
-          {
-            "node": "AI Agent",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
     "Simple Memory": {
       "ai_memory": [
         [
@@ -1763,6 +2625,11 @@
             "node": "Execution & Recommendation",
             "type": "main",
             "index": 0
+          },
+          {
+            "node": "Execution & Recommendation1",
+            "type": "main",
+            "index": 0
           }
         ]
       ]
@@ -1782,7 +2649,7 @@
       "main": [
         [
           {
-            "node": "Send a message5",
+            "node": "Code in JavaScript1",
             "type": "main",
             "index": 0
           }
@@ -1793,7 +2660,7 @@
       "main": [
         [
           {
-            "node": "Send a message5",
+            "node": "Code in JavaScript1",
             "type": "main",
             "index": 0
           }
@@ -1804,7 +2671,7 @@
       "main": [
         [
           {
-            "node": "Send a message5",
+            "node": "Code in JavaScript1",
             "type": "main",
             "index": 0
           }
@@ -1815,7 +2682,7 @@
       "main": [
         [
           {
-            "node": "Send a message5",
+            "node": "Code in JavaScript1",
             "type": "main",
             "index": 0
           }
@@ -1887,6 +2754,13 @@
             "type": "main",
             "index": 0
           }
+        ],
+        [
+          {
+            "node": "Send a message7",
+            "type": "main",
+            "index": 0
+          }
         ]
       ]
     },
@@ -1933,6 +2807,11 @@
           },
           {
             "node": "Get row(s) in sheet3",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Get row(s) in sheet4",
             "type": "main",
             "index": 0
           }
@@ -1984,27 +2863,11 @@
         ]
       ]
     },
-    "Groq Chat Model": {
-      "ai_languageModel": [
-        []
-      ]
-    },
-    "Webhook": {
-      "main": [
-        [
-          {
-            "node": "Append or update row in sheet",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
     "Delete rows or columns from sheet": {
       "main": [
         [
           {
-            "node": "Send a message6",
+            "node": "Code in JavaScript2",
             "type": "main",
             "index": 0
           }
@@ -2015,7 +2878,7 @@
       "main": [
         [
           {
-            "node": "Send a message6",
+            "node": "Code in JavaScript2",
             "type": "main",
             "index": 0
           }
@@ -2026,7 +2889,7 @@
       "main": [
         [
           {
-            "node": "Send a message6",
+            "node": "Code in JavaScript2",
             "type": "main",
             "index": 0
           }
@@ -2037,7 +2900,7 @@
       "main": [
         [
           {
-            "node": "Send a message6",
+            "node": "Code in JavaScript2",
             "type": "main",
             "index": 0
           }
@@ -2099,18 +2962,7 @@
         ]
       ]
     },
-    "Schedule Trigger": {
-      "main": [
-        [
-          {
-            "node": "Get row(s) in sheet4",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Get row(s) in sheet4": {
+    "Execution & Recommendation1": {
       "main": [
         [
           {
@@ -2121,12 +2973,56 @@
         ]
       ]
     },
-    "Google Gemini Chat Model2": {
-      "ai_languageModel": [
+    "Get row(s) in sheet4": {
+      "main": [
         [
           {
-            "node": "AI Agent1",
-            "type": "ai_languageModel",
+            "node": "Delete rows or columns from sheet4",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Delete rows or columns from sheet4": {
+      "main": [
+        [
+          {
+            "node": "Code in JavaScript2",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code in JavaScript1": {
+      "main": [
+        [
+          {
+            "node": "Send a message5",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code in JavaScript2": {
+      "main": [
+        [
+          {
+            "node": "Send a message6",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "AI Agent1": {
+      "main": [
+        [
+          {
+            "node": "Code in JavaScript3",
+            "type": "main",
             "index": 0
           }
         ]
@@ -2143,7 +3039,18 @@
         ]
       ]
     },
-    "Get row(s) in sheet in Google Sheets": {
+    "Google Gemini Chat Model2": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "AI Agent1",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Metadata & Context Get Row1": {
       "ai_tool": [
         [
           {
@@ -2154,22 +3061,207 @@
         ]
       ]
     },
-    "AI Agent1": {
+    "Execution & Recommendation Get row1": {
+      "ai_tool": [
+        [
+          {
+            "node": "AI Agent1",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Quantitative scoring_Get_Row1": {
+      "ai_tool": [
+        [
+          {
+            "node": "AI Agent1",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Qualitative analysis & Diagnosis_get_row1": {
+      "ai_tool": [
+        [
+          {
+            "node": "AI Agent1",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "When chat message received": {
       "main": [
         [
           {
-            "node": "Send a message7",
+            "node": "AI main",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "Code in JavaScript1": {
+    "Simple Memory2": {
+      "ai_memory": [
+        [
+          {
+            "node": "AI main",
+            "type": "ai_memory",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Google Gemini Chat Model3": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "AI main",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Google Gemini Chat Model4": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "Structured Output Parser1",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code in JavaScript4": {
       "main": [
         [
           {
-            "node": "AI Agent1",
+            "node": "Switch1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Metadata & Context Get Row2": {
+      "ai_tool": [
+        [
+          {
+            "node": "AI main",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "AI main": {
+      "main": [
+        [
+          {
+            "node": "Code in JavaScript4",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Structured Output Parser1": {
+      "ai_outputParser": [
+        [
+          {
+            "node": "AI main",
+            "type": "ai_outputParser",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "If4": {
+      "main": [
+        [],
+        []
+      ]
+    },
+    "Append or update row in sheet": {
+      "main": [
+        [
+          {
+            "node": "Send a message8",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Delete rows or columns from sheet5": {
+      "main": [
+        [
+          {
+            "node": "Send a message9",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get row(s) in sheet5": {
+      "main": [
+        [
+          {
+            "node": "Delete rows or columns from sheet5",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Switch1": {
+      "main": [
+        [
+          {
+            "node": "Append or update row in sheet",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Get row(s) in sheet5",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Get row(s) in sheet6",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get row(s) in sheet6": {
+      "main": [
+        [
+          {
+            "node": "Update row in sheet",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Update row in sheet": {
+      "main": [
+        [
+          {
+            "node": "Send a message10",
             "type": "main",
             "index": 0
           }
@@ -2182,7 +3274,7 @@
     "executionOrder": "v1",
     "binaryMode": "separate"
   },
-  "versionId": "97bb56fb-1b6d-49d6-9ead-18a9029fdac4",
+  "versionId": "55772d03-e9f3-4a83-b989-84536c3bd355",
   "meta": {
     "templateCredsSetupCompleted": true,
     "instanceId": "312b8e1c27ba1ae94b15ee40f5b475cef18128657bfd8917a13927efa9db76b9"
