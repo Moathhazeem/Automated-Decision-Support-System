@@ -3,1882 +3,6 @@
   "nodes": [
     {
       "parameters": {
-        "hasOutputParser": true,
-        "options": {
-          "systemMessage": "=أنت مساعد ذكي ونظام لدعم اتخاذ القرار (Automated Decision Support System).\nمهمتك هي استقبال قرارات المستخدم وتصنيفها وتحليلها، ثم استخدام الأدوات المتاحة لديك (Google Sheets Tools) لتحديث التابات المناسبة بناءً على نوع التحليل.\n\nلديك الوصول إلى التابات التالية عبر الأدوات:\n1. Metadata & Context: لمعلومات القرار الأساسية وتصنيفه.\n2. Quantitative Scoring: للتقييم الرقمي والكمي.\n3. Qualitative Analysis & Diagnosis: للتحليل النوعي والتشخيص.\n4. Execution & Recommendation: للتوصيات والخطوات القادمة.\n\nعندما يطلب المستخدم تحليل قرار، قم أولاً بتحليله منطقياً، ثم استدعِ الأدوات المناسبة لحفظ كل جزء من التحليل في التابة المخصصة له في Google Sheets."
-        }
-      },
-      "type": "@n8n/n8n-nodes-langchain.agent",
-      "typeVersion": 3.1,
-      "position": [
-        -48,
-        -416
-      ],
-      "id": "6b91366f-7627-4178-a11d-73799b5a569b",
-      "name": "AI Agent",
-      "alwaysOutputData": false
-    },
-    {
-      "parameters": {
-        "contextWindowLength": 1
-      },
-      "type": "@n8n/n8n-nodes-langchain.memoryBufferWindow",
-      "typeVersion": 1.4,
-      "position": [
-        -96,
-        -224
-      ],
-      "id": "c1abf3bb-25fd-4d98-80fb-8664287a15d1",
-      "name": "Simple Memory"
-    },
-    {
-      "parameters": {
-        "modelName": "models/gemini-3.1-flash-lite",
-        "options": {}
-      },
-      "type": "@n8n/n8n-nodes-langchain.lmChatGoogleGemini",
-      "typeVersion": 1.1,
-      "position": [
-        -240,
-        -240
-      ],
-      "id": "39f91623-699a-49b4-a882-388b9000d703",
-      "name": "Google Gemini Chat Model1",
-      "credentials": {
-        "googlePalmApi": {
-          "id": "5bQnUFfdkzbJs3Ln",
-          "name": "Google Gemini(PaLM) Api account 2"
-        }
-      }
-    },
-    {
-      "parameters": {
-        "modelName": "models/gemini-3.1-flash-lite",
-        "options": {}
-      },
-      "type": "@n8n/n8n-nodes-langchain.lmChatGoogleGemini",
-      "typeVersion": 1.1,
-      "position": [
-        448,
-        32
-      ],
-      "id": "0aec9a26-c961-4022-adaf-2a0bbf573ad8",
-      "name": "Google Gemini Chat Model",
-      "credentials": {
-        "googlePalmApi": {
-          "id": "5bQnUFfdkzbJs3Ln",
-          "name": "Google Gemini(PaLM) Api account 2"
-        }
-      }
-    },
-    {
-      "parameters": {
-        "jsCode": "/**\n * n8n Code Node — \"Calculate Delete Count + Sheet Routing + Email Flag\"\n * ------------------------------------------------\n * يُوضع بعد AI Agent node مباشرة.\n *\n * يتعامل مع مدخلين منفصلين قادمين من AI Agent:\n *\n * (A) مسار الحذف:\n * {\n *   action_type: \"delete\" | \"unclear\",\n *   target_decision_id: \"LAST\" | null,\n *   delete_search_term: string | null,\n *   delete_count_raw: string,\n *   delete_scope: \"last_n\" | \"single_last\" | \"by_search_term\" | \"all\"\n * }\n * → يُخرج: { action_type, target_decision_id, delete_search_term, delete_count }\n *\n * (B) مسار الرسالة/التحليل ($json.message + $json.send_email):\n * message = JSON منظم من AI Agent بـ 4 حقول:\n *   { metadata_context, quantitative_scoring, qualitative_analysis_diagnosis, execution_recommendation }\n * send_email = نص خام من AI Agent يدل على نية إرسال إيميل (مثل: \"نعم\"، \"بدي ايميل\"، \"\" ، null...)\n *\n * → يُخرج:\n * {\n *   sheets: {\n *     metadata_context: {...} | string,\n *     quantitative_scoring: {...} | string,\n *     qualitative_analysis_diagnosis: {...} | string,\n *     execution_recommendation: {...} | string\n *   },\n *   send_email: true | false   // boolean نهائي حتمي، فقط لو طلب صريح\n * }\n */\n\n// ---------- 1) قاموس الأرقام العربية (قابل للتوسعة من نقطة واحدة) ----------\nconst ARABIC_NUMBER_MAP = {\n  // المفرد / المثنى الخاص بكلمة \"قرار\"\n  \"قرار\": 1,\n  \"قرارين\": 2,\n  \"قراران\": 2,\n\n  // الأرقام الأساسية (مع/بدون تاء مربوطة، أخطاء إملائية شائعة)\n  \"واحد\": 1, \"واحدة\": 1,\n  \"اثنين\": 2, \"اثنان\": 2, \"ثنين\": 2,\n  \"ثلاثة\": 3, \"ثلاثه\": 3, \"تلاتة\": 3, \"تلاته\": 3,\n  \"اربعة\": 4, \"أربعة\": 4, \"اربعه\": 4, \"أربعه\": 4,\n  \"خمسة\": 5, \"خمسه\": 5,\n  \"ستة\": 6, \"سته\": 6,\n  \"سبعة\": 7, \"سبعه\": 7,\n  \"ثمانية\": 8, \"ثمانيه\": 8, \"تمانية\": 8,\n  \"تسعة\": 9, \"تسعه\": 9,\n  \"عشرة\": 10, \"عشره\": 10,\n\n  // صيغ مختصرة شائعة في العامية\n  \"خمس\": 5,\n  \"عشر\": 10,\n  \"تلات\": 3,\n  \"اربع\": 4,\n  \"ست\": 6,\n  \"سبع\": 7,\n  \"تمن\": 8,\n  \"تسع\": 9,\n};\n\n// ---------- 2) دالة استخراج أرقام إنجليزية (مع دعم الأرقام العربية ٠-٩) ----------\nfunction extractDigitNumber(text) {\n  if (!text) return null;\n\n  // تحويل الأرقام العربية-هندية (٠١٢٣٤٥٦٧٨٩) إلى لاتينية\n  const arabicIndicDigits = \"٠١٢٣٤٥٦٧٨٩\";\n  let normalized = text.replace(/[٠-٩]/g, (d) => arabicIndicDigits.indexOf(d));\n\n  const match = normalized.match(/\\d+/);\n  if (match) {\n    const num = parseInt(match[0], 10);\n    if (!isNaN(num) && num > 0) return num;\n  }\n  return null;\n}\n\n// ---------- 3) دالة استخراج العدد من كلمات عربية ----------\nfunction extractWordNumber(text) {\n  if (!text) return null;\n\n  // تنظيف النص: إزالة \"ال\" التعريف، علامات تشكيل، مسافات زائدة\n  const cleaned = text\n    .trim()\n    .replace(/^ال/, \"\")\n    .replace(/[\\u064B-\\u0652]/g, \"\"); // إزالة التشكيل\n\n  // مطابقة مباشرة\n  if (ARABIC_NUMBER_MAP.hasOwnProperty(cleaned)) {\n    return ARABIC_NUMBER_MAP[cleaned];\n  }\n\n  // مطابقة جزئية (في حال احتوى النص على كلمة الرقم ضمن جملة أطول)\n  for (const [word, value] of Object.entries(ARABIC_NUMBER_MAP)) {\n    if (cleaned.includes(word)) {\n      return value;\n    }\n  }\n\n  return null;\n}\n\n// ---------- 4) الدالة الرئيسية لحساب delete_count ----------\nfunction resolveDeleteCount(parsed) {\n  const scope = parsed.delete_scope;\n  const raw = (parsed.delete_count_raw || \"\").trim();\n  const searchTerm = parsed.delete_search_term;\n\n  // الحالة أ: الحذف بالاسم/الموضوع — العدد = عدد المصطلحات المفصولة بفاصلة\n  if (scope === \"by_search_term\" && searchTerm) {\n    const terms = searchTerm\n      .split(/[,،]/)\n      .map((t) => t.trim())\n      .filter((t) => t.length > 0);\n    return Math.max(terms.length, 1);\n  }\n\n  // الحالة ب: \"احذف آخر قرار\" بدون عدد\n  if (scope === \"single_last\" || !raw) {\n    return 1;\n  }\n\n  // الحالة ج: \"آخر N قرار/قرارات\" — جرب الأرقام الرقمية أولاً\n  const digitNum = extractDigitNumber(raw);\n  if (digitNum !== null) return digitNum;\n\n  // ثم جرب الكلمات العربية\n  const wordNum = extractWordNumber(raw);\n  if (wordNum !== null) return wordNum;\n\n  // الحالة الافتراضية: تعذر تحديد العدد بوضوح\n  return 1;\n}\n\n// ---------- 5) دالة استخراج نية إرسال الإيميل (boolean حتمي) ----------\n// قاعدة العمل: send_email = true فقط لو المستخدم طلب صراحة (بدي ايميل / ابعتلي ايميل / اي صيغة تأكيد واضحة)\n// أي غموض أو سكوت = false (الافتراضي الآمن، عشان ما نبعت ايميلات غير مطلوبة)\nconst EMAIL_POSITIVE_PATTERNS = [\n  \"بدي ايميل\",\n  \"بدي إيميل\",\n  \"ابعتلي ايميل\",\n  \"ابعتلي إيميل\",\n  \"ابعت ايميل\",\n  \"ابعت إيميل\",\n  \"بعتلي ايميل\",\n  \"ارسل ايميل\",\n  \"أرسل إيميل\",\n  \"ارسلي ايميل\",\n  \"ايميلي\",\n  \"إيميلي\",\n  \"send email\",\n  \"email me\",\n];\n\nconst EMAIL_NEGATIVE_PATTERNS = [\n  \"لا تبعت\",\n  \"ما بدي ايميل\",\n  \"ما بدي إيميل\",\n  \"بدون ايميل\",\n  \"بلا ايميل\",\n  \"no email\",\n];\n\nfunction resolveSendEmail(rawValue) {\n  // قبول boolean مباشر إذا أرسله AI Agent مسبقاً كـ boolean حقيقي\n  if (typeof rawValue === \"boolean\") return rawValue;\n\n  if (rawValue === null || rawValue === undefined) return false;\n\n  const text = String(rawValue).trim().toLowerCase();\n  if (text.length === 0) return false;\n\n  // فحص النفي أولاً (أولوية أعلى، لتجنب \"ما بدي ايميل\" يصير true بسبب وجود كلمة \"ايميل\")\n  for (const neg of EMAIL_NEGATIVE_PATTERNS) {\n    if (text.includes(neg)) return false;\n  }\n\n  for (const pos of EMAIL_POSITIVE_PATTERNS) {\n    if (text.includes(pos)) return true;\n  }\n\n  // فحص أضيق لـ \"نعم\"/\"yes\"/\"true\" بدون تضارب مع \"لا\"/كلمات أخرى تحتوي \"نعم\" كجزء (نادر بالعربي لكن للأمان)\n  if (text === \"نعم\" || text === \"yes\" || text === \"true\" || text === \"1\") {\n    return true;\n  }\n  if (text === \"لا\" || text === \"no\" || text === \"false\" || text === \"0\") {\n    return false;\n  }\n\n  // الافتراضي الآمن: لا إرسال إيميل بدون طلب صريح وواضح\n  return false;\n}\n\n// ---------- 6) دالة تجهيز الأقسام الأربعة (Sheets Routing) ----------\n// تقبل message كـ object جاهز أو نص JSON يحتاج parse\nconst SHEET_KEYS = [\n  \"metadata_context\",\n  \"quantitative_scoring\",\n  \"qualitative_analysis_diagnosis\",\n  \"execution_recommendation\",\n];\n\nfunction resolveSheets(messageInput) {\n  let messageObj;\n\n  if (typeof messageInput === \"string\") {\n    try {\n      messageObj = JSON.parse(messageInput);\n    } catch (err) {\n      // النص ليس JSON صالحاً — رجّع خطأ واضح بدل تخمين تقسيم خاطئ\n      return {\n        error: \"تعذر تحليل message كـ JSON منظم بالأقسام الأربعة\",\n        raw_message: messageInput,\n      };\n    }\n  } else if (typeof messageInput === \"object\" && messageInput !== null) {\n    messageObj = messageInput;\n  } else {\n    return {\n      error: \"message غير موجود أو بصيغة غير متوقعة\",\n      raw_message: messageInput,\n    };\n  }\n\n  const sheets = {};\n  const missingKeys = [];\n\n  for (const key of SHEET_KEYS) {\n    if (messageObj.hasOwnProperty(key)) {\n      sheets[key] = messageObj[key];\n    } else {\n      sheets[key] = null;\n      missingKeys.push(key);\n    }\n  }\n\n  if (missingKeys.length > 0) {\n    sheets._warning = `حقول ناقصة من AI Agent: ${missingKeys.join(\", \")}`;\n  }\n\n  return sheets;\n}\n\n// ---------- 7) نقطة الدخول داخل n8n Code Node ----------\n\n// ملاحظة: عدّل المسار حسب شكل خرج AI Agent node عندك.\nconst rawOutput = $input.item.json.output ?? $input.item.json.text ?? $input.item.json;\nconst hasMessageOrEmail =\n  $input.item.json.message !== undefined || $input.item.json.send_email !== undefined;\n\n// ===== المسار B: رسالة منظمة (4 فئات) + نية إيميل =====\n// يُفعّل هذا المسار إذا كان $json.message أو $json.send_email موجودين في المدخل.\nif (hasMessageOrEmail) {\n  const sheets = resolveSheets($input.item.json.message);\n  const send_email = resolveSendEmail($input.item.json.send_email);\n\n  return [\n    {\n      json: {\n        sheets,\n        send_email,\n      },\n    },\n  ];\n}\n\n// ===== المسار A: نية حذف (delete_count) =====\nlet parsed;\n\ntry {\n  parsed = typeof rawOutput === \"string\" ? JSON.parse(rawOutput) : rawOutput;\n} catch (err) {\n  // فشل تحليل JSON من LLM — رجّع خطأ واضح بدل كسر الـ workflow\n  return [\n    {\n      json: {\n        action_type: \"error\",\n        error: \"فشل تحليل خرج AI Agent كـ JSON\",\n        raw_output: rawOutput,\n      },\n    },\n  ];\n}\n\nif (parsed.action_type !== \"delete\") {\n  // لا توجد نية حذف — مرّر كما هو\n  return [{ json: parsed }];\n}\n\nconst delete_count = resolveDeleteCount(parsed);\n\nconst result = {\n  action_type: \"delete\",\n  target_decision_id: parsed.target_decision_id ?? null,\n  delete_search_term: parsed.delete_search_term ?? null,\n  delete_count: delete_count,\n};\n\nreturn [{ json: result }];\n"
-      },
-      "type": "n8n-nodes-base.code",
-      "typeVersion": 2,
-      "position": [
-        336,
-        -416
-      ],
-      "id": "9351e718-6c31-4759-bfab-2ccecbe155ae",
-      "name": "Code in JavaScript"
-    },
-    {
-      "parameters": {
-        "conditions": {
-          "options": {
-            "caseSensitive": true,
-            "leftValue": "",
-            "typeValidation": "loose",
-            "version": 3
-          },
-          "conditions": [
-            {
-              "id": "952124db-fba5-485f-b5fc-152c7a81742b",
-              "leftValue": "={{ $json.Metadata_Context }}",
-              "rightValue": "Is Not True",
-              "operator": {
-                "type": "boolean",
-                "operation": "notEmpty",
-                "singleValue": true
-              }
-            },
-            {
-              "id": "ced4d96d-e327-49cf-bdde-c98429ba5c83",
-              "leftValue": "={{ $json.send_email }}",
-              "rightValue": true,
-              "operator": {
-                "type": "boolean",
-                "operation": "notEquals"
-              }
-            },
-            {
-              "id": "fef2d534-e131-43ec-ba0b-a7e444e68bed",
-              "leftValue": "={{ $json.Quantitative_Scoring }}",
-              "rightValue": "",
-              "operator": {
-                "type": "object",
-                "operation": "notEmpty",
-                "singleValue": true
-              }
-            },
-            {
-              "id": "6175faf0-1f5d-4794-858d-236744863590",
-              "leftValue": "={{ $json.Qualitative_Analysis }}",
-              "rightValue": "",
-              "operator": {
-                "type": "object",
-                "operation": "notEmpty",
-                "singleValue": true
-              }
-            },
-            {
-              "id": "1629fe00-4e45-4aed-aec8-b80fbb416ea9",
-              "leftValue": "={{ $json.Execution_Recommendation }}",
-              "rightValue": "",
-              "operator": {
-                "type": "object",
-                "operation": "notEmpty",
-                "singleValue": true
-              }
-            }
-          ],
-          "combinator": "and"
-        },
-        "looseTypeValidation": true,
-        "options": {}
-      },
-      "type": "n8n-nodes-base.filter",
-      "typeVersion": 2.3,
-      "position": [
-        1312,
-        -1136
-      ],
-      "id": "1abb7d29-5b25-46ae-8fbd-46b59ff0966c",
-      "name": "Filter"
-    },
-    {
-      "parameters": {
-        "autoFix": true
-      },
-      "type": "@n8n/n8n-nodes-langchain.outputParserStructured",
-      "typeVersion": 1.3,
-      "position": [
-        304,
-        -128
-      ],
-      "id": "d2823c05-20df-4a00-b43b-6541133d213d",
-      "name": "Structured Output Parser",
-      "alwaysOutputData": true
-    },
-    {
-      "parameters": {
-        "operation": "appendOrUpdate",
-        "documentId": {
-          "__rl": true,
-          "value": "1PxNA1-3gD350MTcTtqd5uViJ8SO0uX-WwnIigjleUZw",
-          "mode": "list",
-          "cachedResultName": "Automated Decision Support System",
-          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1PxNA1-3gD350MTcTtqd5uViJ8SO0uX-WwnIigjleUZw/edit?usp=drivesdk"
-        },
-        "sheetName": {
-          "__rl": true,
-          "value": "gid=0",
-          "mode": "list",
-          "cachedResultName": "Metadata & Context",
-          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1PxNA1-3gD350MTcTtqd5uViJ8SO0uX-WwnIigjleUZw/edit#gid=0"
-        },
-        "columns": {
-          "mappingMode": "defineBelow",
-          "value": {
-            "ID": "={{ $json.Metadata_Context.ID }}",
-            "Decision": "={{ $json.Metadata_Context.Decision }}",
-            "Timestamp": "={{ $json.Metadata_Context.Timestamp }}",
-            "Decision Classification": "={{ $json.Metadata_Context.Decision_Classification }}"
-          },
-          "matchingColumns": [
-            "ID"
-          ],
-          "schema": [
-            {
-              "id": "ID",
-              "displayName": "ID",
-              "required": false,
-              "defaultMatch": false,
-              "display": true,
-              "type": "string",
-              "canBeUsedToMatch": true,
-              "removed": false
-            },
-            {
-              "id": "Decision",
-              "displayName": "Decision",
-              "required": false,
-              "defaultMatch": false,
-              "display": true,
-              "type": "string",
-              "canBeUsedToMatch": true
-            },
-            {
-              "id": "Timestamp",
-              "displayName": "Timestamp",
-              "required": false,
-              "defaultMatch": false,
-              "display": true,
-              "type": "string",
-              "canBeUsedToMatch": true
-            },
-            {
-              "id": "Decision Classification",
-              "displayName": "Decision Classification",
-              "required": false,
-              "defaultMatch": false,
-              "display": true,
-              "type": "string",
-              "canBeUsedToMatch": true
-            }
-          ],
-          "attemptToConvertTypes": false,
-          "convertFieldsToString": false
-        },
-        "options": {}
-      },
-      "type": "n8n-nodes-base.googleSheets",
-      "typeVersion": 4.7,
-      "position": [
-        1568,
-        -1488
-      ],
-      "id": "99056294-adeb-4c74-851d-a15cfb9b87f6",
-      "name": "Metadata & Context",
-      "alwaysOutputData": false,
-      "executeOnce": false,
-      "retryOnFail": false,
-      "credentials": {
-        "googleSheetsOAuth2Api": {
-          "id": "qPcYFvcEFGVnuJDH",
-          "name": "Google Sheets account 2"
-        }
-      }
-    },
-    {
-      "parameters": {
-        "operation": "appendOrUpdate",
-        "documentId": {
-          "__rl": true,
-          "value": "1PxNA1-3gD350MTcTtqd5uViJ8SO0uX-WwnIigjleUZw",
-          "mode": "list",
-          "cachedResultName": "Automated Decision Support System",
-          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1PxNA1-3gD350MTcTtqd5uViJ8SO0uX-WwnIigjleUZw/edit?usp=drivesdk"
-        },
-        "sheetName": {
-          "__rl": true,
-          "value": 1932691692,
-          "mode": "list",
-          "cachedResultName": "Quantitative Scoring",
-          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1PxNA1-3gD350MTcTtqd5uViJ8SO0uX-WwnIigjleUZw/edit#gid=1932691692"
-        },
-        "columns": {
-          "mappingMode": "defineBelow",
-          "value": {
-            "ID": "={{ $json.Quantitative_Scoring.ID }}",
-            "Financial_Score": "={{ $json.Quantitative_Scoring.Financial_Score }}",
-            "Time_Score": "={{ $json.Quantitative_Scoring.Time_Score }}",
-            "Wellbeing_Score": "={{ $json.Quantitative_Scoring.Wellbeing_Score }}",
-            "Relationships_Score": "={{ $json.Quantitative_Scoring.Relationships_Score }}",
-            "Risks_Score": "={{ $json.Quantitative_Scoring.Risks_Score }}",
-            "Opportunity_Cost_Score": "={{ $json.Quantitative_Scoring.Opportunity_Cost_Score }}",
-            "Total_Score": "={{ $json.Quantitative_Scoring.Total_Score }}"
-          },
-          "matchingColumns": [
-            "ID"
-          ],
-          "schema": [
-            {
-              "id": "ID",
-              "displayName": "ID",
-              "required": false,
-              "defaultMatch": false,
-              "display": true,
-              "type": "string",
-              "canBeUsedToMatch": true,
-              "removed": false
-            },
-            {
-              "id": "Financial_Score",
-              "displayName": "Financial_Score",
-              "required": false,
-              "defaultMatch": false,
-              "display": true,
-              "type": "string",
-              "canBeUsedToMatch": true,
-              "removed": false
-            },
-            {
-              "id": "Time_Score",
-              "displayName": "Time_Score",
-              "required": false,
-              "defaultMatch": false,
-              "display": true,
-              "type": "string",
-              "canBeUsedToMatch": true,
-              "removed": false
-            },
-            {
-              "id": "Wellbeing_Score",
-              "displayName": "Wellbeing_Score",
-              "required": false,
-              "defaultMatch": false,
-              "display": true,
-              "type": "string",
-              "canBeUsedToMatch": true,
-              "removed": false
-            },
-            {
-              "id": "Relationships_Score",
-              "displayName": "Relationships_Score",
-              "required": false,
-              "defaultMatch": false,
-              "display": true,
-              "type": "string",
-              "canBeUsedToMatch": true,
-              "removed": false
-            },
-            {
-              "id": "Risks_Score",
-              "displayName": "Risks_Score",
-              "required": false,
-              "defaultMatch": false,
-              "display": true,
-              "type": "string",
-              "canBeUsedToMatch": true,
-              "removed": false
-            },
-            {
-              "id": "Opportunity_Cost_Score",
-              "displayName": "Opportunity_Cost_Score",
-              "required": false,
-              "defaultMatch": false,
-              "display": true,
-              "type": "string",
-              "canBeUsedToMatch": true,
-              "removed": false
-            },
-            {
-              "id": "Total_Score",
-              "displayName": "Total_Score",
-              "required": false,
-              "defaultMatch": false,
-              "display": true,
-              "type": "string",
-              "canBeUsedToMatch": true,
-              "removed": false
-            }
-          ],
-          "attemptToConvertTypes": false,
-          "convertFieldsToString": false
-        },
-        "options": {}
-      },
-      "type": "n8n-nodes-base.googleSheets",
-      "typeVersion": 4.7,
-      "position": [
-        1568,
-        -1328
-      ],
-      "id": "1c2bfd54-cc30-4499-96b7-22b38103eec2",
-      "name": "Quantitative Scoring",
-      "credentials": {
-        "googleSheetsOAuth2Api": {
-          "id": "qPcYFvcEFGVnuJDH",
-          "name": "Google Sheets account 2"
-        }
-      }
-    },
-    {
-      "parameters": {
-        "operation": "appendOrUpdate",
-        "documentId": {
-          "__rl": true,
-          "value": "1PxNA1-3gD350MTcTtqd5uViJ8SO0uX-WwnIigjleUZw",
-          "mode": "list",
-          "cachedResultName": "Automated Decision Support System",
-          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1PxNA1-3gD350MTcTtqd5uViJ8SO0uX-WwnIigjleUZw/edit?usp=drivesdk"
-        },
-        "sheetName": {
-          "__rl": true,
-          "value": 1917721808,
-          "mode": "list",
-          "cachedResultName": "Qualitative Analysis & Diagnosis",
-          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1PxNA1-3gD350MTcTtqd5uViJ8SO0uX-WwnIigjleUZw/edit#gid=1917721808"
-        },
-        "columns": {
-          "mappingMode": "defineBelow",
-          "value": {
-            "ID": "={{ $json.Qualitative_Analysis_Diagnosis.ID }}",
-            "Priority": "={{ $json.Qualitative_Analysis_Diagnosis.Priority }}",
-            "Commentary": "={{ $json.Qualitative_Analysis_Diagnosis.Commentary }}",
-            "Timeframe": "={{ $json.Qualitative_Analysis_Diagnosis.Timeframe }}"
-          },
-          "matchingColumns": [
-            "ID"
-          ],
-          "schema": [
-            {
-              "id": "ID",
-              "displayName": "ID",
-              "required": false,
-              "defaultMatch": false,
-              "display": true,
-              "type": "string",
-              "canBeUsedToMatch": true,
-              "removed": false
-            },
-            {
-              "id": "Priority",
-              "displayName": "Priority",
-              "required": false,
-              "defaultMatch": false,
-              "display": true,
-              "type": "string",
-              "canBeUsedToMatch": true,
-              "removed": false
-            },
-            {
-              "id": "Commentary",
-              "displayName": "Commentary",
-              "required": false,
-              "defaultMatch": false,
-              "display": true,
-              "type": "string",
-              "canBeUsedToMatch": true,
-              "removed": false
-            },
-            {
-              "id": "Timeframe",
-              "displayName": "Timeframe",
-              "required": false,
-              "defaultMatch": false,
-              "display": true,
-              "type": "string",
-              "canBeUsedToMatch": true,
-              "removed": false
-            }
-          ],
-          "attemptToConvertTypes": false,
-          "convertFieldsToString": false
-        },
-        "options": {}
-      },
-      "type": "n8n-nodes-base.googleSheets",
-      "typeVersion": 4.7,
-      "position": [
-        1568,
-        -1168
-      ],
-      "id": "5dcde265-3fbe-487e-ba5a-bd63c69d7395",
-      "name": "Qualitative analysis & Diagnosis",
-      "credentials": {
-        "googleSheetsOAuth2Api": {
-          "id": "qPcYFvcEFGVnuJDH",
-          "name": "Google Sheets account 2"
-        }
-      }
-    },
-    {
-      "parameters": {
-        "operation": "appendOrUpdate",
-        "documentId": {
-          "__rl": true,
-          "value": "1PxNA1-3gD350MTcTtqd5uViJ8SO0uX-WwnIigjleUZw",
-          "mode": "list",
-          "cachedResultName": "Automated Decision Support System",
-          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1PxNA1-3gD350MTcTtqd5uViJ8SO0uX-WwnIigjleUZw/edit?usp=drivesdk"
-        },
-        "sheetName": {
-          "__rl": true,
-          "value": 651189005,
-          "mode": "list",
-          "cachedResultName": "Execution & Recommendation",
-          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1PxNA1-3gD350MTcTtqd5uViJ8SO0uX-WwnIigjleUZw/edit#gid=651189005"
-        },
-        "columns": {
-          "mappingMode": "defineBelow",
-          "value": {
-            "ID": "={{ $json.Execution_Recommendation.ID }}",
-            "Action Plan": "={{ $json.Execution_Recommendation.Action_Plan }}",
-            "Risk & Mitigations": "={{ $json.Execution_Recommendation.Risk_Mitigations }}",
-            "Recommendation": "={{ $json.Execution_Recommendation.Recommendation }}"
-          },
-          "matchingColumns": [
-            "ID"
-          ],
-          "schema": [
-            {
-              "id": "ID",
-              "displayName": "ID",
-              "required": false,
-              "defaultMatch": false,
-              "display": true,
-              "type": "string",
-              "canBeUsedToMatch": true,
-              "removed": false
-            },
-            {
-              "id": "Action Plan",
-              "displayName": "Action Plan",
-              "required": false,
-              "defaultMatch": false,
-              "display": true,
-              "type": "string",
-              "canBeUsedToMatch": true,
-              "removed": false
-            },
-            {
-              "id": "Risk & Mitigations",
-              "displayName": "Risk & Mitigations",
-              "required": false,
-              "defaultMatch": false,
-              "display": true,
-              "type": "string",
-              "canBeUsedToMatch": true,
-              "removed": false
-            },
-            {
-              "id": "Recommendation",
-              "displayName": "Recommendation",
-              "required": false,
-              "defaultMatch": false,
-              "display": true,
-              "type": "string",
-              "canBeUsedToMatch": true,
-              "removed": false
-            }
-          ],
-          "attemptToConvertTypes": false,
-          "convertFieldsToString": false
-        },
-        "options": {}
-      },
-      "type": "n8n-nodes-base.googleSheets",
-      "typeVersion": 4.7,
-      "position": [
-        1568,
-        -960
-      ],
-      "id": "1184be40-f07b-49f0-9d84-2a4b2b4453c9",
-      "name": "Execution & Recommendation",
-      "credentials": {
-        "googleSheetsOAuth2Api": {
-          "id": "qPcYFvcEFGVnuJDH",
-          "name": "Google Sheets account 2"
-        }
-      }
-    },
-    {
-      "parameters": {
-        "sendTo": "moathhazeem661@gmail.com",
-        "subject": "={{ $json.Metadata_Context.Decision }}",
-        "message": "=<div style=\"font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; color: #333333; background-color: #f9f9f9; direction: rtl; border-radius: 12px; box-shadow: 0 4px 10px rgba(0,0,0,0.05);\">\n  <div style=\"text-align: center; padding-bottom: 20px; border-bottom: 2px solid #eef2f3;\">\n    <h2 style=\"color: #4A5568; margin: 0; font-size: 24px;\">📊 تقرير البيانات التعريفية</h2>\n    <p style=\"color: #718096; font-size: 14px; margin-top: 5px;\">تفاصيل سياق القرار المستخرج.</p>\n  </div>\n\n  <div style=\"margin-top: 25px; background: #ffffff; padding: 22px; border-radius: 8px; border-right: 6px solid #4F46E5; box-shadow: 0 2px 5px rgba(0,0,0,0.02);\">\n    <h3 style=\"color: #4F46E5; margin-top: 0; font-size: 19px; border-bottom: 1px solid #F3F4F6; padding-bottom: 8px;\">🔍 تفاصيل القرار والسياق (Metadata)</h3>\n    <table style=\"width: 100%; margin-top: 15px; font-size: 15px; border-collapse: collapse;\">\n      <tr style=\"background: #F9FAFB;\"><td style=\"padding: 10px; font-weight: bold; width: 30%;\">المعرف البرمجي:</td><td style=\"padding: 10px; color: #4F46E5; font-family: monospace;\">{{ $json.Metadata_Context.ID }}</td></tr>\n      <tr><td style=\"padding: 10px; font-weight: bold;\">القرار المتخذ:</td><td style=\"padding: 10px; line-height: 1.5;\">{{ $json.Metadata_Context.Decision }}</td></tr>\n      <tr style=\"background: #F9FAFB;\"><td style=\"padding: 10px; font-weight: bold;\">تاريخ التسجيل:</td><td style=\"padding: 10px;\">{{ $json.Metadata_Context.Timestamp }}</td></tr>\n      <tr><td style=\"padding: 10px; font-weight: bold;\">تصنيف القرار:</td><td style=\"padding: 10px;\"><span style=\"background: #EEF2F6; padding: 4px 10px; border-radius: 6px; font-size: 13px; color: #312E81; font-weight: bold;\">{{ $json.Metadata_Context.Decision_Classification }}</span></td></tr>\n    </table>\n  </div>",
-        "options": {
-          "appendAttribution": false
-        }
-      },
-      "type": "n8n-nodes-base.gmail",
-      "typeVersion": 2.2,
-      "position": [
-        2048,
-        -720
-      ],
-      "id": "f8def338-b9d3-4e3b-8d78-9f2696b141c1",
-      "name": "Send a message",
-      "webhookId": "ff3c9f41-445a-4a65-bd70-8cf78d3fd0ec",
-      "credentials": {
-        "gmailOAuth2": {
-          "id": "9NcBOjKo4wAbWWGE",
-          "name": "Gmail account"
-        }
-      }
-    },
-    {
-      "parameters": {
-        "conditions": {
-          "options": {
-            "caseSensitive": true,
-            "leftValue": "",
-            "typeValidation": "strict",
-            "version": 3
-          },
-          "conditions": [
-            {
-              "id": "791fa4a9-8b7e-49fd-9e15-7a4b3925df57",
-              "leftValue": "={{ $json.send_email_target }}",
-              "rightValue": "=True",
-              "operator": {
-                "type": "string",
-                "operation": "notEmpty",
-                "singleValue": true
-              }
-            }
-          ],
-          "combinator": "and"
-        },
-        "options": {}
-      },
-      "type": "n8n-nodes-base.if",
-      "typeVersion": 2.3,
-      "position": [
-        1104,
-        -368
-      ],
-      "id": "df07e11a-f93a-433a-82f7-1daf6273fa0e",
-      "name": "If"
-    },
-    {
-      "parameters": {
-        "conditions": {
-          "options": {
-            "caseSensitive": true,
-            "leftValue": "",
-            "typeValidation": "strict",
-            "version": 3
-          },
-          "conditions": [
-            {
-              "id": "bf35c8ab-c006-4df2-b7cf-c57f2743d720",
-              "leftValue": "={{ $json.send_email_target }}",
-              "rightValue": "none",
-              "operator": {
-                "type": "string",
-                "operation": "equals"
-              }
-            }
-          ],
-          "combinator": "and"
-        },
-        "options": {}
-      },
-      "type": "n8n-nodes-base.if",
-      "typeVersion": 2.3,
-      "position": [
-        848,
-        -752
-      ],
-      "id": "99001b91-6d6e-4ceb-96a7-5d95a4b61b2e",
-      "name": "If1"
-    },
-    {
-      "parameters": {
-        "rules": {
-          "values": [
-            {
-              "conditions": {
-                "options": {
-                  "caseSensitive": true,
-                  "leftValue": "",
-                  "typeValidation": "strict",
-                  "version": 3
-                },
-                "conditions": [
-                  {
-                    "leftValue": "={{ $json.send_email_target }}",
-                    "rightValue": "metadata",
-                    "operator": {
-                      "type": "string",
-                      "operation": "equals"
-                    },
-                    "id": "6658ffc2-c76a-4daf-b13e-3d8e9b3ddcf4"
-                  }
-                ],
-                "combinator": "and"
-              }
-            },
-            {
-              "conditions": {
-                "options": {
-                  "caseSensitive": true,
-                  "leftValue": "",
-                  "typeValidation": "strict",
-                  "version": 3
-                },
-                "conditions": [
-                  {
-                    "id": "6add89c3-254c-41fa-b894-bb69d9eda48b",
-                    "leftValue": "={{ $json.send_email_target }}",
-                    "rightValue": "scoring",
-                    "operator": {
-                      "type": "string",
-                      "operation": "equals"
-                    }
-                  }
-                ],
-                "combinator": "and"
-              }
-            },
-            {
-              "conditions": {
-                "options": {
-                  "caseSensitive": true,
-                  "leftValue": "",
-                  "typeValidation": "strict",
-                  "version": 3
-                },
-                "conditions": [
-                  {
-                    "id": "99e3cb58-711e-4b9f-b010-f58e354b2b68",
-                    "leftValue": "={{ $json.send_email_target }}",
-                    "rightValue": "analysis",
-                    "operator": {
-                      "type": "string",
-                      "operation": "equals"
-                    }
-                  }
-                ],
-                "combinator": "and"
-              }
-            },
-            {
-              "conditions": {
-                "options": {
-                  "caseSensitive": true,
-                  "leftValue": "",
-                  "typeValidation": "strict",
-                  "version": 3
-                },
-                "conditions": [
-                  {
-                    "id": "8c7cb930-0bfd-466b-a87e-2c46e9fa894d",
-                    "leftValue": "={{ $json.send_email_target }}",
-                    "rightValue": "recommendation",
-                    "operator": {
-                      "type": "string",
-                      "operation": "equals"
-                    }
-                  }
-                ],
-                "combinator": "and"
-              }
-            },
-            {
-              "conditions": {
-                "options": {
-                  "caseSensitive": true,
-                  "leftValue": "",
-                  "typeValidation": "strict",
-                  "version": 3
-                },
-                "conditions": [
-                  {
-                    "id": "566f4ec9-5fa7-406a-9b93-f3478c7cb64a",
-                    "leftValue": "={{ $json.send_email_target }}",
-                    "rightValue": "all",
-                    "operator": {
-                      "type": "string",
-                      "operation": "equals"
-                    }
-                  }
-                ],
-                "combinator": "and"
-              }
-            },
-            {
-              "conditions": {
-                "options": {
-                  "caseSensitive": true,
-                  "leftValue": "",
-                  "typeValidation": "strict",
-                  "version": 3
-                },
-                "conditions": [
-                  {
-                    "id": "04350930-b09a-413e-be26-db7bd8e55b06",
-                    "leftValue": "={{ $json.send_email_target }}",
-                    "rightValue": "SWOT",
-                    "operator": {
-                      "type": "string",
-                      "operation": "equals",
-                      "name": "filter.operator.equals"
-                    }
-                  }
-                ],
-                "combinator": "and"
-              }
-            }
-          ]
-        },
-        "options": {}
-      },
-      "type": "n8n-nodes-base.switch",
-      "typeVersion": 3.4,
-      "position": [
-        1344,
-        -384
-      ],
-      "id": "30af53a0-22be-4ef7-b2f4-d7026933410a",
-      "name": "Switch"
-    },
-    {
-      "parameters": {
-        "sendTo": "moathhazeem661@gmail.com",
-        "subject": "={{ $json.Metadata_Context.Decision }}",
-        "message": "=<div style=\"font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; color: #333333; background-color: #f9f9f9; direction: rtl; border-radius: 12px; box-shadow: 0 4px 10px rgba(0,0,0,0.05);\">\n  <div style=\"text-align: center; padding-bottom: 20px; border-bottom: 2px solid #eef2f3;\">\n    <h2 style=\"color: #4A5568; margin: 0; font-size: 24px;\">📈 بطاقة التقييم الرقمي</h2>\n    <p style=\"color: #718096; font-size: 14px; margin-top: 5px;\">تحليل الدرجات والنسب المستخرجة.</p>\n  </div>\n\n  <div style=\"margin-top: 25px; background: #ffffff; padding: 22px; border-radius: 8px; border-right: 6px solid #10B981; box-shadow: 0 2px 5px rgba(0,0,0,0.02);\">\n    <h3 style=\"color: #10B981; margin-top: 0; font-size: 19px; border-bottom: 1px solid #F3F4F6; padding-bottom: 8px;\">📊 الدرجات الرقمية وحساب المؤشرات (Scoring)</h3>\n    <p style=\"font-size: 14px; color: #6B7280; margin-top: 5px;\">المعرف المرجعي: <span style=\"font-family: monospace;\">{{ $json.Quantitative_Scoring.ID }}</span></p>\n    <table style=\"width: 100%; border-collapse: collapse; margin-top: 15px; font-size: 15px;\">\n      <tr style=\"background-color: #F8FAFC;\"><td style=\"padding: 10px; border-bottom: 1px solid #E2E8F0;\">الجانب المالي (Financial)</td><td style=\"padding: 10px; text-align: left; font-weight: bold; border-bottom: 1px solid #E2E8F0; color: #10B981;\">{{ $json.Quantitative_Scoring.Financial_Score }} / 5</td></tr>\n      <tr><td style=\"padding: 10px; border-bottom: 1px solid #E2E8F0;\">إدارة الوقت (Time)</td><td style=\"padding: 10px; text-align: left; font-weight: bold; border-bottom: 1px solid #E2E8F0; color: #10B981;\">{{ $json.Quantitative_Scoring.Time_Score }} / 5</td></tr>\n      <tr style=\"background-color: #F8FAFC;\"><td style=\"padding: 10px; border-bottom: 1px solid #E2E8F0;\">الصحة النفسية (Wellbeing)</td><td style=\"padding: 10px; text-align: left; font-weight: bold; border-bottom: 1px solid #E2E8F0; color: #10B981;\">{{ $json.Quantitative_Scoring.Wellbeing_Score }} / 5</td></tr>\n      <tr><td style=\"padding: 10px; border-bottom: 1px solid #E2E8F0;\">العلاقات والاتصال (Relationships)</td><td style=\"padding: 10px; text-align: left; font-weight: bold; border-bottom: 1px solid #E2E8F0; color: #10B981;\">{{ $json.Quantitative_Scoring.Relationships_Score }} / 5</td></tr>\n      <tr style=\"background-color: #F8FAFC;\"><td style=\"padding: 10px; border-bottom: 1px solid #E2E8F0;\">مستوى المخاطر (Risks)</td><td style=\"padding: 10px; text-align: left; font-weight: bold; border-bottom: 1px solid #E2E8F0; color: #EF4444;\">{{ $json.Quantitative_Scoring.Risks_Score }} / 5</td></tr>\n      <tr><td style=\"padding: 10px; border-bottom: 1px solid #E2E8F0;\">تكلفة الفرصة البديلة (Opportunity)</td><td style=\"padding: 10px; text-align: left; font-weight: bold; border-bottom: 1px solid #E2E8F0; color: #10B981;\">{{ $json.Quantitative_Scoring.Opportunity_Cost_Score }} / 5</td></tr>\n      <tr style=\"background-color: #ECFDF5; color: #065F46; font-weight: bold; font-size: 16px;\"><td style=\"padding: 12px; border-radius: 0 0 8px 0;\">المجموع الإجمالي (Total Score)</td><td style=\"padding: 12px; text-align: left; font-size: 18px; border-radius: 8px 0 0 0;\">{{ $json.Quantitative_Scoring.Total_Score }} / 14</td></tr>\n    </table>\n  </div>",
-        "options": {
-          "appendAttribution": false
-        }
-      },
-      "type": "n8n-nodes-base.gmail",
-      "typeVersion": 2.2,
-      "position": [
-        2048,
-        -576
-      ],
-      "id": "3055d6af-5287-4fee-bff2-192b0e56f5de",
-      "name": "Send a message1",
-      "webhookId": "ff3c9f41-445a-4a65-bd70-8cf78d3fd0ec",
-      "credentials": {
-        "gmailOAuth2": {
-          "id": "9NcBOjKo4wAbWWGE",
-          "name": "Gmail account"
-        }
-      }
-    },
-    {
-      "parameters": {
-        "sendTo": "moathhazeem661@gmail.com",
-        "subject": "={{ $json.Metadata_Context.Decision }}",
-        "message": "=<div style=\"font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; color: #333333; background-color: #f9f9f9; direction: rtl; border-radius: 12px; box-shadow: 0 4px 10px rgba(0,0,0,0.05);\">\n  <div style=\"text-align: center; padding-bottom: 20px; border-bottom: 2px solid #eef2f3;\">\n    <h2 style=\"color: #4A5568; margin: 0; font-size: 24px;\">🧠 نتائج التشخيص التحليلي</h2>\n    <p style=\"color: #718096; font-size: 14px; margin-top: 5px;\">التحليل النوعي والملاحظات التفصيلية للطلب.</p>\n  </div>\n\n  <div style=\"margin-top: 25px; background: #ffffff; padding: 22px; border-radius: 8px; border-right: 6px solid #3B82F6; box-shadow: 0 2px 5px rgba(0,0,0,0.02);\">\n    <h3 style=\"color: #3B82F6; margin-top: 0; font-size: 19px; border-bottom: 1px solid #F3F4F6; padding-bottom: 8px;\">📝 التحليل والتشخيص النوعي (Analysis)</h3>\n    <div style=\"margin-top: 15px; margin-bottom: 15px;\">\n      <span style=\"background: #EFF6FF; color: #1D4ED8; padding: 6px 12px; border-radius: 20px; font-size: 13px; font-weight: bold; margin-left: 10px;\">الأولوية: {{ $json.Qualitative_Analysis_Diagnosis.Priority }}</span>\n      <span style=\"background: #F3F4F6; color: #374151; padding: 6px 12px; border-radius: 20px; font-size: 13px; font-weight: bold;\">المدى الزمني: {{ $json.Qualitative_Analysis_Diagnosis.Timeframe }}</span>\n    </div>\n    <div style=\"background: #F8FAFC; padding: 16px; border-radius: 8px; border: 1px solid #E2E8F0; font-size: 14.5px; line-height: 1.7; color: #334155; white-space: pre-line;\">\n      <strong style=\"color: #1E293B; font-size: 15px;\">التعليق والتحليل المفصل:</strong><br>{{ $json.Qualitative_Analysis_Diagnosis.Commentary }}\n    </div>\n  </div>",
-        "options": {
-          "appendAttribution": false
-        }
-      },
-      "type": "n8n-nodes-base.gmail",
-      "typeVersion": 2.2,
-      "position": [
-        2048,
-        -448
-      ],
-      "id": "e8b7cee7-7420-4d41-9024-4448377258a2",
-      "name": "Send a message2",
-      "webhookId": "ff3c9f41-445a-4a65-bd70-8cf78d3fd0ec",
-      "credentials": {
-        "gmailOAuth2": {
-          "id": "9NcBOjKo4wAbWWGE",
-          "name": "Gmail account"
-        }
-      }
-    },
-    {
-      "parameters": {
-        "sendTo": "moathhazeem661@gmail.com",
-        "subject": "={{ $json.Metadata_Context.Decision }}",
-        "message": "=<div style=\"font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; color: #333333; background-color: #f9f9f9; direction: rtl; border-radius: 12px; box-shadow: 0 4px 10px rgba(0,0,0,0.05);\">\n  <div style=\"text-align: center; padding-bottom: 20px; border-bottom: 2px solid #eef2f3;\">\n    <h2 style=\"color: #4A5568; margin: 0; font-size: 24px;\">💡 التوصيات وخارطة الطريق</h2>\n    <p style=\"color: #718096; font-size: 14px; margin-top: 5px;\">خطة العمل التنفيذية وإجراءات تقليل المخاطر.</p>\n  </div>\n\n  <div style=\"margin-top: 25px; background: #ffffff; padding: 22px; border-radius: 8px; border-right: 6px solid #F59E0B; box-shadow: 0 2px 5px rgba(0,0,0,0.02);\">\n    <h3 style=\"color: #F59E0B; margin-top: 0; font-size: 19px; border-bottom: 1px solid #F3F4F6; padding-bottom: 8px;\">💡 التوصيات التنفيذية</h3>\n    <div style=\"margin-top: 15px; background: #FFFBEB; padding: 15px; border-radius: 6px; border-right: 4px solid #D97706; font-size: 15px; color: #92400E; font-weight: 500;\">\n      <strong>🎯 التوصية الرئيسية:</strong> {{ $json.Execution_Recommendation.Recommendation }}\n    </div>\n    \n    <p style=\"margin: 20px 0 8px 0; font-size: 15px; color: #1E293B; font-weight: bold;\">🚀 خطة العمل الجاهزة (Action Plan):</p>\n    <div style=\"font-size: 14px; line-height: 1.6; background: #FAFAFA; padding: 14px; border-radius: 6px; border: 1px solid #E5E7EB; color: #4B5563; white-space: pre-line;\">{{ $json.Execution_Recommendation.Action_Plan }}</div>\n    \n    <p style=\"margin: 20px 0 8px 0; font-size: 15px; color: #1E293B; font-weight: bold;\">⚠️ استراتيجية تقليل المخاطر:</p>\n    <div style=\"font-size: 14px; line-height: 1.6; background: #FAF5FF; padding: 14px; border-radius: 6px; border: 1px solid #E9D5FF; color: #6B21A8; white-space: pre-line;\">{{ $json.Execution_Recommendation.Risk_Mitigations }}</div>\n  </div>",
-        "options": {
-          "appendAttribution": false
-        }
-      },
-      "type": "n8n-nodes-base.gmail",
-      "typeVersion": 2.2,
-      "position": [
-        2048,
-        -320
-      ],
-      "id": "5c5af600-cd56-422b-8f67-7b041946f92b",
-      "name": "Send a message3",
-      "webhookId": "ff3c9f41-445a-4a65-bd70-8cf78d3fd0ec",
-      "credentials": {
-        "gmailOAuth2": {
-          "id": "9NcBOjKo4wAbWWGE",
-          "name": "Gmail account"
-        }
-      }
-    },
-    {
-      "parameters": {
-        "sendTo": "moathhazeem661@gmail.com",
-        "subject": "={{ $json.Metadata_Context.Decision }}",
-        "message": "=<div style=\"font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; color: #333333; background-color: #f9f9f9; direction: rtl; border-radius: 12px; box-shadow: 0 4px 10px rgba(0,0,0,0.05);\">\n  <div style=\"text-align: center; padding-bottom: 20px; border-bottom: 2px solid #eef2f3;\">\n    <h2 style=\"color: #4A5568; margin: 0; font-size: 24px;\">📋 تقرير النظام الشامل والكامل</h2>\n    <p style=\"color: #718096; font-size: 14px; margin-top: 5px;\">يتضمن كافة الأقسام والمؤشرات المتاحة في السجل.</p>\n  </div>\n\n  <!-- Section 1: Metadata -->\n  <div style=\"margin-top: 25px; background: #ffffff; padding: 22px; border-radius: 8px; border-right: 6px solid #4F46E5; box-shadow: 0 2px 5px rgba(0,0,0,0.02);\">\n    <h3 style=\"color: #4F46E5; margin-top: 0; font-size: 18px; border-bottom: 1px solid #F3F4F6; padding-bottom: 8px;\">🔍 تفاصيل القرار والسياق (Metadata)</h3>\n    <table style=\"width: 100%; margin-top: 10px; font-size: 14px; border-collapse: collapse;\">\n      <tr style=\"background: #F9FAFB;\"><td style=\"padding: 8px; font-weight: bold; width: 30%;\">المعرف:</td><td style=\"padding: 8px; color: #4F46E5; font-family: monospace;\">{{ $json.Metadata_Context.ID }}</td></tr>\n      <tr><td style=\"padding: 8px; font-weight: bold;\">القرار:</td><td style=\"padding: 8px;\">{{ $json.Metadata_Context.Decision }}</td></tr>\n      <tr style=\"background: #F9FAFB;\"><td style=\"padding: 8px; font-weight: bold;\">التصنيف:</td><td style=\"padding: 8px;\">{{ $json.Metadata_Context.Decision_Classification }}</td></tr>\n    </table>\n  </div>\n\n  <!-- Section 2: Scoring -->\n  <div style=\"margin-top: 25px; background: #ffffff; padding: 22px; border-radius: 8px; border-right: 6px solid #10B981; box-shadow: 0 2px 5px rgba(0,0,0,0.02);\">\n    <h3 style=\"color: #10B981; margin-top: 0; font-size: 18px; border-bottom: 1px solid #F3F4F6; padding-bottom: 8px;\">📊 الدرجات الرقمية (Scoring)</h3>\n    <table style=\"width: 100%; border-collapse: collapse; margin-top: 10px; font-size: 14px;\">\n      <tr><td style=\"padding: 8px; border-bottom: 1px solid #E2E8F0;\">المالي / الوقت / النفسي</td><td style=\"padding: 8px; text-align: left; font-weight: bold; color: #10B981;\">{{ $json.Quantitative_Scoring.Financial_Score }} | {{ $json.Quantitative_Scoring.Time_Score }} | {{ $json.Quantitative_Scoring.Wellbeing_Score }}</td></tr>\n      <tr style=\"background-color: #ECFDF5; font-weight: bold;\"><td style=\"padding: 10px;\">المجموع الإجمالي المؤشر</td><td style=\"padding: 10px; text-align: left; color: #065F46; font-size: 16px;\">{{ $json.Quantitative_Scoring.Total_Score }} / 14</td></tr>\n    </table>\n  </div>\n\n  <!-- Section 3: Analysis -->\n  <div style=\"margin-top: 25px; background: #ffffff; padding: 22px; border-radius: 8px; border-right: 6px solid #3B82F6; box-shadow: 0 2px 5px rgba(0,0,0,0.02);\">\n    <h3 style=\"color: #3B82F6; margin-top: 0; font-size: 18px; border-bottom: 1px solid #F3F4F6; padding-bottom: 8px;\">📝 التحليل النوعي (Analysis)</h3>\n    <p style=\"font-size: 13.5px; color: #4B5563; line-height: 1.6; white-space: pre-line; background: #F8FAFC; padding: 12px; border-radius: 6px; margin-top: 10px;\">{{ $json.Qualitative_Analysis_Diagnosis.Commentary }}</p>\n  </div>\n\n  <!-- Section 4: Recommendation -->\n  <div style=\"margin-top: 25px; background: #ffffff; padding: 22px; border-radius: 8px; border-right: 6px solid #F59E0B; box-shadow: 0 2px 5px rgba(0,0,0,0.02);\">\n    <h3 style=\"color: #F59E0B; margin-top: 0; font-size: 18px; border-bottom: 1px solid #F3F4F6; padding-bottom: 8px;\">💡 التوصيات وخطة العمل</h3>\n    <p style=\"font-size: 14px; font-weight: bold; color: #B45309; margin-top: 10px;\">🎯 التوصية الرئيسية: {{ $json.Execution_Recommendation.Recommendation }}</p>\n    <div style=\"font-size: 13px; background: #FAFAFA; padding: 10px; border-radius: 6px; border: 1px solid #E5E7EB; margin-top: 8px; white-space: pre-line;\">{{ $json.Execution_Recommendation.Action_Plan }}</div>\n  </div>",
-        "options": {
-          "appendAttribution": false
-        }
-      },
-      "type": "n8n-nodes-base.gmail",
-      "typeVersion": 2.2,
-      "position": [
-        2048,
-        -192
-      ],
-      "id": "cfacf8c0-f846-4a1b-86a7-741b1a853cd6",
-      "name": "Send a message4",
-      "webhookId": "ff3c9f41-445a-4a65-bd70-8cf78d3fd0ec",
-      "credentials": {
-        "gmailOAuth2": {
-          "id": "9NcBOjKo4wAbWWGE",
-          "name": "Gmail account"
-        }
-      }
-    },
-    {
-      "parameters": {
-        "conditions": {
-          "options": {
-            "caseSensitive": true,
-            "leftValue": "",
-            "typeValidation": "strict",
-            "version": 3
-          },
-          "conditions": [
-            {
-              "id": "044296d7-aaad-46a2-a6e3-03fab1a37224",
-              "leftValue": "={{ $json.action_type }}",
-              "rightValue": "delete",
-              "operator": {
-                "type": "string",
-                "operation": "notEquals"
-              }
-            }
-          ],
-          "combinator": "and"
-        },
-        "options": {}
-      },
-      "type": "n8n-nodes-base.if",
-      "typeVersion": 2.3,
-      "position": [
-        544,
-        -416
-      ],
-      "id": "aae31834-3090-402e-b59c-bf63a80be9e2",
-      "name": "If2"
-    },
-    {
-      "parameters": {
-        "operation": "delete",
-        "documentId": {
-          "__rl": true,
-          "value": "1PxNA1-3gD350MTcTtqd5uViJ8SO0uX-WwnIigjleUZw",
-          "mode": "list",
-          "cachedResultName": "Automated Decision Support System",
-          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1PxNA1-3gD350MTcTtqd5uViJ8SO0uX-WwnIigjleUZw/edit?usp=drivesdk"
-        },
-        "sheetName": {
-          "__rl": true,
-          "value": "gid=0",
-          "mode": "list",
-          "cachedResultName": "Metadata & Context",
-          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1PxNA1-3gD350MTcTtqd5uViJ8SO0uX-WwnIigjleUZw/edit#gid=0"
-        },
-        "startIndex": "={{ $json.row_number }}"
-      },
-      "type": "n8n-nodes-base.googleSheets",
-      "typeVersion": 4.7,
-      "position": [
-        1648,
-        144
-      ],
-      "id": "5c5d1d08-e13c-4d73-b2c1-80e6f9ed5cea",
-      "name": "Delete rows or columns from sheet",
-      "credentials": {
-        "googleSheetsOAuth2Api": {
-          "id": "qPcYFvcEFGVnuJDH",
-          "name": "Google Sheets account 2"
-        }
-      }
-    },
-    {
-      "parameters": {
-        "conditions": {
-          "options": {
-            "caseSensitive": true,
-            "leftValue": "",
-            "typeValidation": "strict",
-            "version": 3
-          },
-          "conditions": [
-            {
-              "id": "70422ec7-9197-47d4-adff-2e7dc54676a7",
-              "leftValue": "",
-              "rightValue": "",
-              "operator": {
-                "type": "string",
-                "operation": "equals"
-              }
-            }
-          ],
-          "combinator": "and"
-        },
-        "options": {}
-      },
-      "type": "n8n-nodes-base.if",
-      "typeVersion": 2.3,
-      "position": [
-        1168,
-        400
-      ],
-      "id": "7e8b16f0-c51c-4619-b948-c9e4046f5552",
-      "name": "If3"
-    },
-    {
-      "parameters": {
-        "documentId": {
-          "__rl": true,
-          "value": "1PxNA1-3gD350MTcTtqd5uViJ8SO0uX-WwnIigjleUZw",
-          "mode": "list",
-          "cachedResultName": "Automated Decision Support System",
-          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1PxNA1-3gD350MTcTtqd5uViJ8SO0uX-WwnIigjleUZw/edit?usp=drivesdk"
-        },
-        "sheetName": {
-          "__rl": true,
-          "value": "gid=0",
-          "mode": "list",
-          "cachedResultName": "Metadata & Context",
-          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1PxNA1-3gD350MTcTtqd5uViJ8SO0uX-WwnIigjleUZw/edit#gid=0"
-        },
-        "options": {}
-      },
-      "type": "n8n-nodes-base.googleSheets",
-      "typeVersion": 4.7,
-      "position": [
-        1472,
-        144
-      ],
-      "id": "56b8d71b-b69b-4200-af9e-82f05b42ebb2",
-      "name": "Get row(s) in sheet",
-      "credentials": {
-        "googleSheetsOAuth2Api": {
-          "id": "qPcYFvcEFGVnuJDH",
-          "name": "Google Sheets account 2"
-        }
-      }
-    },
-    {
-      "parameters": {
-        "operation": "delete",
-        "documentId": {
-          "__rl": true,
-          "value": "1PxNA1-3gD350MTcTtqd5uViJ8SO0uX-WwnIigjleUZw",
-          "mode": "list",
-          "cachedResultName": "Automated Decision Support System",
-          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1PxNA1-3gD350MTcTtqd5uViJ8SO0uX-WwnIigjleUZw/edit?usp=drivesdk"
-        },
-        "sheetName": {
-          "__rl": true,
-          "value": 1932691692,
-          "mode": "list",
-          "cachedResultName": "Quantitative Scoring",
-          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1PxNA1-3gD350MTcTtqd5uViJ8SO0uX-WwnIigjleUZw/edit#gid=1932691692"
-        },
-        "startIndex": "={{ $json.row_number }}"
-      },
-      "type": "n8n-nodes-base.googleSheets",
-      "typeVersion": 4.7,
-      "position": [
-        1648,
-        320
-      ],
-      "id": "dbf48fce-7fab-4694-96c8-93973a9bfdb5",
-      "name": "Delete rows or columns from sheet1",
-      "credentials": {
-        "googleSheetsOAuth2Api": {
-          "id": "qPcYFvcEFGVnuJDH",
-          "name": "Google Sheets account 2"
-        }
-      }
-    },
-    {
-      "parameters": {
-        "documentId": {
-          "__rl": true,
-          "value": "1PxNA1-3gD350MTcTtqd5uViJ8SO0uX-WwnIigjleUZw",
-          "mode": "list",
-          "cachedResultName": "Automated Decision Support System",
-          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1PxNA1-3gD350MTcTtqd5uViJ8SO0uX-WwnIigjleUZw/edit?usp=drivesdk"
-        },
-        "sheetName": {
-          "__rl": true,
-          "value": 1932691692,
-          "mode": "list",
-          "cachedResultName": "Quantitative Scoring",
-          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1PxNA1-3gD350MTcTtqd5uViJ8SO0uX-WwnIigjleUZw/edit#gid=1932691692"
-        },
-        "options": {}
-      },
-      "type": "n8n-nodes-base.googleSheets",
-      "typeVersion": 4.7,
-      "position": [
-        1472,
-        320
-      ],
-      "id": "f714be0c-d761-47dc-a32d-423b6ce19f14",
-      "name": "Get row(s) in sheet1",
-      "credentials": {
-        "googleSheetsOAuth2Api": {
-          "id": "qPcYFvcEFGVnuJDH",
-          "name": "Google Sheets account 2"
-        }
-      }
-    },
-    {
-      "parameters": {
-        "operation": "delete",
-        "documentId": {
-          "__rl": true,
-          "value": "1PxNA1-3gD350MTcTtqd5uViJ8SO0uX-WwnIigjleUZw",
-          "mode": "list",
-          "cachedResultName": "Automated Decision Support System",
-          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1PxNA1-3gD350MTcTtqd5uViJ8SO0uX-WwnIigjleUZw/edit?usp=drivesdk"
-        },
-        "sheetName": {
-          "__rl": true,
-          "value": 1917721808,
-          "mode": "list",
-          "cachedResultName": "Qualitative Analysis & Diagnosis",
-          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1PxNA1-3gD350MTcTtqd5uViJ8SO0uX-WwnIigjleUZw/edit#gid=1917721808"
-        },
-        "startIndex": "={{ $json.row_number }}"
-      },
-      "type": "n8n-nodes-base.googleSheets",
-      "typeVersion": 4.7,
-      "position": [
-        1648,
-        480
-      ],
-      "id": "742afd20-635b-4a12-9398-6883bc7c5dcd",
-      "name": "Delete rows or columns from sheet2",
-      "credentials": {
-        "googleSheetsOAuth2Api": {
-          "id": "qPcYFvcEFGVnuJDH",
-          "name": "Google Sheets account 2"
-        }
-      }
-    },
-    {
-      "parameters": {
-        "documentId": {
-          "__rl": true,
-          "value": "1PxNA1-3gD350MTcTtqd5uViJ8SO0uX-WwnIigjleUZw",
-          "mode": "list",
-          "cachedResultName": "Automated Decision Support System",
-          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1PxNA1-3gD350MTcTtqd5uViJ8SO0uX-WwnIigjleUZw/edit?usp=drivesdk"
-        },
-        "sheetName": {
-          "__rl": true,
-          "value": 1917721808,
-          "mode": "list",
-          "cachedResultName": "Qualitative Analysis & Diagnosis",
-          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1PxNA1-3gD350MTcTtqd5uViJ8SO0uX-WwnIigjleUZw/edit#gid=1917721808"
-        },
-        "options": {}
-      },
-      "type": "n8n-nodes-base.googleSheets",
-      "typeVersion": 4.7,
-      "position": [
-        1472,
-        480
-      ],
-      "id": "5516f70c-9193-414b-a20f-2dcff8493536",
-      "name": "Get row(s) in sheet2",
-      "credentials": {
-        "googleSheetsOAuth2Api": {
-          "id": "qPcYFvcEFGVnuJDH",
-          "name": "Google Sheets account 2"
-        }
-      }
-    },
-    {
-      "parameters": {
-        "operation": "delete",
-        "documentId": {
-          "__rl": true,
-          "value": "1PxNA1-3gD350MTcTtqd5uViJ8SO0uX-WwnIigjleUZw",
-          "mode": "list",
-          "cachedResultName": "Automated Decision Support System",
-          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1PxNA1-3gD350MTcTtqd5uViJ8SO0uX-WwnIigjleUZw/edit?usp=drivesdk"
-        },
-        "sheetName": {
-          "__rl": true,
-          "value": 651189005,
-          "mode": "list",
-          "cachedResultName": "Execution & Recommendation",
-          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1PxNA1-3gD350MTcTtqd5uViJ8SO0uX-WwnIigjleUZw/edit#gid=651189005"
-        },
-        "startIndex": "={{ $json.row_number }}"
-      },
-      "type": "n8n-nodes-base.googleSheets",
-      "typeVersion": 4.7,
-      "position": [
-        1648,
-        640
-      ],
-      "id": "b1c0ef09-78d3-4a4e-9fc0-a28381734f4d",
-      "name": "Delete rows or columns from sheet3",
-      "credentials": {
-        "googleSheetsOAuth2Api": {
-          "id": "qPcYFvcEFGVnuJDH",
-          "name": "Google Sheets account 2"
-        }
-      }
-    },
-    {
-      "parameters": {
-        "documentId": {
-          "__rl": true,
-          "value": "1PxNA1-3gD350MTcTtqd5uViJ8SO0uX-WwnIigjleUZw",
-          "mode": "list",
-          "cachedResultName": "Automated Decision Support System",
-          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1PxNA1-3gD350MTcTtqd5uViJ8SO0uX-WwnIigjleUZw/edit?usp=drivesdk"
-        },
-        "sheetName": {
-          "__rl": true,
-          "value": 651189005,
-          "mode": "list",
-          "cachedResultName": "Execution & Recommendation",
-          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1PxNA1-3gD350MTcTtqd5uViJ8SO0uX-WwnIigjleUZw/edit#gid=651189005"
-        },
-        "options": {}
-      },
-      "type": "n8n-nodes-base.googleSheets",
-      "typeVersion": 4.7,
-      "position": [
-        1472,
-        640
-      ],
-      "id": "f2baa922-d04c-42e7-acb9-bc325cf109cc",
-      "name": "Get row(s) in sheet3",
-      "credentials": {
-        "googleSheetsOAuth2Api": {
-          "id": "qPcYFvcEFGVnuJDH",
-          "name": "Google Sheets account 2"
-        }
-      }
-    },
-    {
-      "parameters": {
-        "sendTo": "moathhazeem661@gmail.com",
-        "subject": "New decision",
-        "message": "=<!DOCTYPE html>\n<html lang=\"ar\" dir=\"rtl\">\n<head>\n    <meta charset=\"UTF-8\">\n    <title>تقرير دعم القرار والتقييم</title>\n</head>\n<body style=\"margin: 0; padding: 0; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background-color: #f4f6f9; color: #333333;\">\n\n    <table align=\"center\" border=\"0\" cellpadding=\"0\" cellspacing=\"0\" width=\"100%\" style=\"max-width: 600px; background-color: #ffffff; margin: 20px auto; border-radius: 8px; box-shadow: 0 4px 10px rgba(0,0,0,0.05); overflow: hidden; border: 1px solid #e1e5eb;\">\n        \n        <tr>\n            <td style=\"background: linear-gradient(135deg, #1e3c72, #2a5298); padding: 25px; text-align: center; color: #ffffff;\">\n                <h1 style=\"margin: 0; font-size: 22px; font-weight: 600; letter-spacing: 0.5px;\">مساعد القرارات الذكي</h1>\n                <p style=\"margin: 5px 0 0 0; font-size: 14px; opacity: 0.9;\">تاريخ وموعد التحليل: {{ $json.Timestamp }}</p>\n            </td>\n        </tr>\n\n        <tr>\n            <td style=\"padding: 30px 25px 20px 25px;\">\n                <div style=\"background-color: #f8f9fa; border-right: 4px solid #1e3c72; padding: 15px; margin-bottom: 25px; border-radius: 4px;\">\n                    <span style=\"font-size: 12px; color: #777777; font-weight: bold; display: block; margin-bottom: 5px;\">القرار المقترح للتحليل:</span>\n                    <p style=\"margin: 0; font-size: 16px; font-weight: 600; color: #1e3c72; line-height: 1.5;\">{{ $json.Decision }}</p>\n                </div>\n\n                <table width=\"100%\" cellpadding=\"0\" cellspacing=\"0\" style=\"margin-bottom: 25px; font-size: 14px;\">\n                    <tr>\n                        <td style=\"padding: 8px 0; border-bottom: 1px solid #eeeeee;\"><strong>الأولوية الحالية للقرار:</strong></td>\n                        <td style=\"padding: 8px 0; border-bottom: 1px solid #eeeeee; text-align: left;\"><span style=\"background-color: #ffeef0; color: #d9383a; padding: 3px 8px; border-radius: 4px; font-weight: bold; font-size: 12px;\">{{ $json.Priority }}</span></td>\n                    </tr>\n                </table>\n\n                <h3 style=\"color: #1e3c72; font-size: 16px; margin: 0 0 10px 0; border-bottom: 2px solid #f0f2f5; padding-bottom: 5px;\">🚀 خطة التنفيذ العملي (Action Plan)</h3>\n                <div style=\"font-size: 14px; line-height: 1.7; color: #4a5568; margin: 0 0 25px 0; white-space: pre-line;\">\n                   {{ $json['Action Plan'] }}\n                </div>\n            </td>\n        </tr>\n\n        <tr>\n            <td style=\"padding: 25px; background-color: #f8f9fa; border-top: 1px solid #e1e5eb;\">\n                <div style=\"text-align: center; margin-bottom: 15px;\">\n                    <h3 style=\"margin: 0 0 5px 0; color: #333333; font-size: 16px;\">🔄 مدى نجاح القرار (Decision evaluation)</h3>\n                    <p style=\"margin: 0; font-size: 13px; color: #666666;\">يرجى تقييم القرار المتخذ من 1 (منخفض جداً) إلى 10 (ممتاز):</p>\n                </div>\n\n                <table width=\"100%\" cellpadding=\"0\" cellspacing=\"2\" style=\"text-align: center; margin-bottom: 20px;\">\n                    <tr>\n                        <td><a href=\"https://your-n8n-url.com/webhook/feedback?id={{ $json.ID }}&evaluation=1\" style=\"display: block; padding: 10px 0; background-color: #e63946; color: #ffffff; text-decoration: none; border-radius: 4px; font-weight: bold; font-size: 13px;\">1</a></td>\n                        <td><a href=\"https://your-n8n-url.com/webhook/feedback?id={{ $json.ID }}&evaluation=2\" style=\"display: block; padding: 10px 0; background-color: #e63946; color: #ffffff; text-decoration: none; border-radius: 4px; font-weight: bold; font-size: 13px;\">2</a></td>\n                        <td><a href=\"https://your-n8n-url.com/webhook/feedback?id={{ $json.ID }}&evaluation=3\" style=\"display: block; padding: 10px 0; background-color: #f4a261; color: #ffffff; text-decoration: none; border-radius: 4px; font-weight: bold; font-size: 13px;\">3</a></td>\n                        <td><a href=\"https://your-n8n-url.com/webhook/feedback?id={{ $json.ID }}&evaluation=4\" style=\"display: block; padding: 10px 0; background-color: #f4a261; color: #ffffff; text-decoration: none; border-radius: 4px; font-weight: bold; font-size: 13px;\">4</a></td>\n                        <td><a href=\"https://your-n8n-url.com/webhook/feedback?id={{ $json.ID }}&evaluation=5\" style=\"display: block; padding: 10px 0; background-color: #e9c46a; color: #333333; text-decoration: none; border-radius: 4px; font-weight: bold; font-size: 13px;\">5</a></td>\n                        <td><a href=\"https://your-n8n-url.com/webhook/feedback?id={{ $json.ID }}&evaluation=6\" style=\"display: block; padding: 10px 0; background-color: #e9c46a; color: #333333; text-decoration: none; border-radius: 4px; font-weight: bold; font-size: 13px;\">6</a></td>\n                        <td><a href=\"https://your-n8n-url.com/webhook/feedback?id={{ $json.ID }}&evaluation=7\" style=\"display: block; padding: 10px 0; background-color: #2a9d8f; color: #ffffff; text-decoration: none; border-radius: 4px; font-weight: bold; font-size: 13px;\">7</a></td>\n                        <td><a href=\"https://your-n8n-url.com/webhook/feedback?id={{ $json.ID }}&evaluation=8\" style=\"display: block; padding: 10px 0; background-color: #2a9d8f; color: #ffffff; text-decoration: none; border-radius: 4px; font-weight: bold; font-size: 13px;\">8</a></td>\n                        <td><a href=\"https://your-n8n-url.com/webhook/feedback?id={{ $json.ID }}&evaluation=9\" style=\"display: block; padding: 10px 0; background-color: #2a9d8f; color: #ffffff; text-decoration: none; border-radius: 4px; font-weight: bold; font-size: 13px;\">9</a></td>\n                        <td><a href=\"https://your-n8n-url.com/webhook/feedback?id={{ $json.ID }}&evaluation=10\" style=\"display: block; padding: 10px 0; background-color: #1d3557; color: #ffffff; text-decoration: none; border-radius: 4px; font-weight: bold; font-size: 13px;\">10</a></td>\n                    </tr>\n                </table>\n            </td>\n        </tr>\n    </table>\n\n</body>\n</html>",
-        "options": {}
-      },
-      "type": "n8n-nodes-base.gmail",
-      "typeVersion": 2.2,
-      "position": [
-        2336,
-        -1296
-      ],
-      "id": "a83bc87f-5a5d-4774-b938-2eb13d7217cd",
-      "name": "Send a message5",
-      "webhookId": "ba8893c2-6315-406b-8874-e03a1814a018",
-      "credentials": {
-        "gmailOAuth2": {
-          "id": "9NcBOjKo4wAbWWGE",
-          "name": "Gmail account"
-        }
-      }
-    },
-    {
-      "parameters": {
-        "sendTo": "moathhazeem661@gmail.com",
-        "subject": "New decision",
-        "message": "=<!DOCTYPE html>\n<html lang=\"ar\" dir=\"rtl\">\n<head>\n    <meta charset=\"UTF-8\">\n    <title>تأكيد حذف القرارات</title>\n</head>\n<body style=\"margin: 0; padding: 0; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background-color: #f4f6f9; color: #333333;\">\n\n    <!-- الحاوية الرئيسية للإيميل -->\n    <table align=\"center\" border=\"0\" cellpadding=\"0\" cellspacing=\"0\" width=\"100%\" style=\"max-width: 600px; background-color: #ffffff; margin: 20px auto; border-radius: 8px; box-shadow: 0 4px 10px rgba(0,0,0,0.05); overflow: hidden; border: 1px solid #e1e5eb;\">\n        \n        <!-- الهيدر التحذيري -->\n        <tr>\n            <td style=\"background: linear-gradient(135deg, #d9383a, #b32426); padding: 25px; text-align: center; color: #ffffff;\">\n                <h1 style=\"margin: 0; font-size: 22px; font-weight: 600; letter-spacing: 0.5px;\">🗑️ تأكيد حذف بيانات من النظام</h1>\n                <p style=\"margin: 5px 0 0 0; font-size: 14px; opacity: 0.9;\">تمت عملية الحذف بنجاح بناءً على طلبك</p>\n            </td>\n        </tr>\n\n        <!-- المحتوى الأساسي -->\n        <tr>\n            <td style=\"padding: 30px 25px 20px 25px;\">\n                \n                <!-- صندوق الإحصائيات السريع -->\n                <div style=\"background-color: #fff5f5; border-right: 4px solid #d9383a; padding: 15px; margin-bottom: 25px; border-radius: 4px;\">\n                    <p style=\"margin: 0; font-size: 15px; color: #b32426; line-height: 1.6;\">\n                        مرحباً، نود إعلامك بأنه قد تم إزالة \n                        <strong style=\"font-size: 18px; font-weight: bold;\">{{ $json.length }}</strong> \n                        من القرارات التاريخية نهائياً من جداول البيانات الخاصة بك.\n                    </p>\n                </div>\n\n                <h3 style=\"color: #333333; font-size: 16px; margin: 0 0 15px 0; border-bottom: 2px solid #f0f2f5; padding-bottom: 5px;\">📋 قائمة القرارات التي تم حذفها:</h3>\n\n                <!-- جدول عرض القرارات المحذوفة ديناميكياً -->\n                <table width=\"100%\" cellpadding=\"10\" cellspacing=\"0\" style=\"border-collapse: collapse; font-size: 14px; text-align: right; margin-bottom: 20px;\">\n                    <thead>\n                        <tr style=\"background-color: #f8f9fa; border-bottom: 2px solid #e1e5eb;\">\n                            <th style=\"padding: 10px; color: #1e3c72; font-weight: bold; border: 1px solid #e1e5eb;\">رقم القرار (ID)</th>\n                            <th style=\"padding: 10px; color: #1e3c72; font-weight: bold; border: 1px solid #e1e5eb;\">القرار (Decision)</th>\n                            <th style=\"padding: 10px; color: #1e3c72; font-weight: bold; border: 1px solid #e1e5eb;\">التاريخ (Timestamp)</th>\n                        </tr>\n                    </thead>\n                    <tbody>\n                        /* سيقوم n8n بتكرار هذا الجزء تلقائياً بناءً على عدد العناصر الممررة */\n                        {{#each $json}}\n                        <tr style=\"border-bottom: 1px solid #eeeeee;\">\n                            <td style=\"padding: 10px; font-weight: bold; color: #555555; border: 1px solid #eeeeee;\">#{{ $json.ID }}</td>\n                            <td style=\"padding: 10px; color: #333333; line-height: 1.4; border: 1px solid #eeeeee;\">{{ $json.Decision }}</td>\n                            <td style=\"padding: 10px; color: #666666; font-size: 13px; border: 1px solid #eeeeee; white-space: nowrap;\">{{ $json.Timestamp }}</td>\n                        </tr>\n                        {{/each}}\n                    </tbody>\n                </table>\n\n            </td>\n        </tr>\n\n        <!-- الفوتر السفلي -->\n        <tr>\n            <td style=\"background-color: #f8f9fa; padding: 15px; text-align: center; font-size: 11px; color: #777777; border-top: 1px solid #e1e5eb;\">\n                تم توثيق هذه العملية وإرسالها تلقائياً لإدارة جودة البيانات في النظام الكلي.<br>\n                تاريخ تنفيذ العملية الحالية: 2026-06-25\n            </td>\n        </tr>\n    </table>\n\n</body>\n</html>",
-        "options": {}
-      },
-      "type": "n8n-nodes-base.gmail",
-      "typeVersion": 2.2,
-      "position": [
-        2384,
-        448
-      ],
-      "id": "8ceb82a0-60d0-478a-8653-5db67f7cd649",
-      "name": "Send a message6",
-      "webhookId": "ba8893c2-6315-406b-8874-e03a1814a018",
-      "credentials": {
-        "gmailOAuth2": {
-          "id": "9NcBOjKo4wAbWWGE",
-          "name": "Gmail account"
-        }
-      }
-    },
-    {
-      "parameters": {
-        "documentId": {
-          "__rl": true,
-          "value": "1PxNA1-3gD350MTcTtqd5uViJ8SO0uX-WwnIigjleUZw",
-          "mode": "list",
-          "cachedResultName": "Automated Decision Support System",
-          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1PxNA1-3gD350MTcTtqd5uViJ8SO0uX-WwnIigjleUZw/edit?usp=drivesdk"
-        },
-        "sheetName": {
-          "__rl": true,
-          "value": "gid=0",
-          "mode": "list",
-          "cachedResultName": "Metadata & Context",
-          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1PxNA1-3gD350MTcTtqd5uViJ8SO0uX-WwnIigjleUZw/edit#gid=0"
-        },
-        "options": {}
-      },
-      "type": "n8n-nodes-base.googleSheetsTool",
-      "typeVersion": 4.7,
-      "position": [
-        -272,
-        144
-      ],
-      "id": "1159b2d6-2cfe-4655-9c86-37f9ab29e6ea",
-      "name": "Metadata & Context Get Row",
-      "credentials": {
-        "googleSheetsOAuth2Api": {
-          "id": "qPcYFvcEFGVnuJDH",
-          "name": "Google Sheets account 2"
-        }
-      }
-    },
-    {
-      "parameters": {
-        "documentId": {
-          "__rl": true,
-          "value": "1PxNA1-3gD350MTcTtqd5uViJ8SO0uX-WwnIigjleUZw",
-          "mode": "list",
-          "cachedResultName": "Automated Decision Support System",
-          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1PxNA1-3gD350MTcTtqd5uViJ8SO0uX-WwnIigjleUZw/edit?usp=drivesdk"
-        },
-        "sheetName": {
-          "__rl": true,
-          "value": 651189005,
-          "mode": "list",
-          "cachedResultName": "Execution & Recommendation",
-          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1PxNA1-3gD350MTcTtqd5uViJ8SO0uX-WwnIigjleUZw/edit#gid=651189005"
-        },
-        "options": {}
-      },
-      "type": "n8n-nodes-base.googleSheetsTool",
-      "typeVersion": 4.7,
-      "position": [
-        -112,
-        144
-      ],
-      "id": "1f47cec6-8b41-4bf6-9eb1-e29818bcc2b4",
-      "name": "Execution & Recommendation Get row",
-      "credentials": {
-        "googleSheetsOAuth2Api": {
-          "id": "qPcYFvcEFGVnuJDH",
-          "name": "Google Sheets account 2"
-        }
-      }
-    },
-    {
-      "parameters": {
-        "descriptionType": "manual",
-        "toolDescription": "Use this tool to save and append the core metadata, decision text, and context of the strategic choices into the Google Sheet.",
-        "documentId": {
-          "__rl": true,
-          "value": "1PxNA1-3gD350MTcTtqd5uViJ8SO0uX-WwnIigjleUZw",
-          "mode": "list",
-          "cachedResultName": "Automated Decision Support System",
-          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1PxNA1-3gD350MTcTtqd5uViJ8SO0uX-WwnIigjleUZw/edit?usp=drivesdk"
-        },
-        "sheetName": {
-          "__rl": true,
-          "value": 1932691692,
-          "mode": "list",
-          "cachedResultName": "Quantitative Scoring",
-          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1PxNA1-3gD350MTcTtqd5uViJ8SO0uX-WwnIigjleUZw/edit#gid=1932691692"
-        },
-        "options": {}
-      },
-      "type": "n8n-nodes-base.googleSheetsTool",
-      "typeVersion": 4.7,
-      "position": [
-        48,
-        144
-      ],
-      "id": "008efbfd-b18e-4c0c-8c4e-dd1c868b379b",
-      "name": "Quantitative scoring_Get_Row",
-      "credentials": {
-        "googleSheetsOAuth2Api": {
-          "id": "qPcYFvcEFGVnuJDH",
-          "name": "Google Sheets account 2"
-        }
-      }
-    },
-    {
-      "parameters": {
-        "documentId": {
-          "__rl": true,
-          "value": "1PxNA1-3gD350MTcTtqd5uViJ8SO0uX-WwnIigjleUZw",
-          "mode": "list",
-          "cachedResultName": "Automated Decision Support System",
-          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1PxNA1-3gD350MTcTtqd5uViJ8SO0uX-WwnIigjleUZw/edit?usp=drivesdk"
-        },
-        "sheetName": {
-          "__rl": true,
-          "value": 1917721808,
-          "mode": "list",
-          "cachedResultName": "Qualitative Analysis & Diagnosis",
-          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1PxNA1-3gD350MTcTtqd5uViJ8SO0uX-WwnIigjleUZw/edit#gid=1917721808"
-        },
-        "options": {}
-      },
-      "type": "n8n-nodes-base.googleSheetsTool",
-      "typeVersion": 4.7,
-      "position": [
-        208,
-        144
-      ],
-      "id": "01dd8ca1-68e0-45e8-9b85-98ced990cc9c",
-      "name": "Qualitative analysis & Diagnosis_get_row",
-      "credentials": {
-        "googleSheetsOAuth2Api": {
-          "id": "qPcYFvcEFGVnuJDH",
-          "name": "Google Sheets account 2"
-        }
-      }
-    },
-    {
-      "parameters": {
-        "documentId": {
-          "__rl": true,
-          "value": "1PxNA1-3gD350MTcTtqd5uViJ8SO0uX-WwnIigjleUZw",
-          "mode": "list",
-          "cachedResultName": "Automated Decision Support System",
-          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1PxNA1-3gD350MTcTtqd5uViJ8SO0uX-WwnIigjleUZw/edit?usp=drivesdk"
-        },
-        "sheetName": {
-          "__rl": true,
-          "value": 36964260,
-          "mode": "list",
-          "cachedResultName": "Feedback User",
-          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1PxNA1-3gD350MTcTtqd5uViJ8SO0uX-WwnIigjleUZw/edit#gid=36964260"
-        },
-        "options": {}
-      },
-      "type": "n8n-nodes-base.googleSheetsTool",
-      "typeVersion": 4.7,
-      "position": [
-        384,
-        144
-      ],
-      "id": "fd5c0324-72e2-47c7-acbc-f751730f4891",
-      "name": "Feedback user_get_row",
-      "credentials": {
-        "googleSheetsOAuth2Api": {
-          "id": "qPcYFvcEFGVnuJDH",
-          "name": "Google Sheets account 2"
-        }
-      }
-    },
-    {
-      "parameters": {
-        "operation": "appendOrUpdate",
-        "documentId": {
-          "__rl": true,
-          "value": "1PxNA1-3gD350MTcTtqd5uViJ8SO0uX-WwnIigjleUZw",
-          "mode": "list",
-          "cachedResultName": "Automated Decision Support System",
-          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1PxNA1-3gD350MTcTtqd5uViJ8SO0uX-WwnIigjleUZw/edit?usp=drivesdk"
-        },
-        "sheetName": {
-          "__rl": true,
-          "value": 175016056,
-          "mode": "list",
-          "cachedResultName": "SWOT",
-          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1PxNA1-3gD350MTcTtqd5uViJ8SO0uX-WwnIigjleUZw/edit#gid=175016056"
-        },
-        "columns": {
-          "mappingMode": "autoMapInputData",
-          "value": {
-            "ID": "={{ $json.Execution_Recommendation.ID }}"
-          },
-          "matchingColumns": [
-            "ID"
-          ],
-          "schema": [
-            {
-              "id": "ID",
-              "displayName": "ID",
-              "required": false,
-              "defaultMatch": false,
-              "display": true,
-              "type": "string",
-              "canBeUsedToMatch": true,
-              "removed": false
-            },
-            {
-              "id": "Strengths",
-              "displayName": "Strengths",
-              "required": false,
-              "defaultMatch": false,
-              "display": true,
-              "type": "string",
-              "canBeUsedToMatch": true,
-              "removed": false
-            },
-            {
-              "id": "Weaknesses",
-              "displayName": "Weaknesses",
-              "required": false,
-              "defaultMatch": false,
-              "display": true,
-              "type": "string",
-              "canBeUsedToMatch": true,
-              "removed": false
-            },
-            {
-              "id": "Opportunities",
-              "displayName": "Opportunities",
-              "required": false,
-              "defaultMatch": false,
-              "display": true,
-              "type": "string",
-              "canBeUsedToMatch": true,
-              "removed": false
-            },
-            {
-              "id": "Threats",
-              "displayName": "Threats",
-              "required": false,
-              "defaultMatch": false,
-              "display": true,
-              "type": "string",
-              "canBeUsedToMatch": true,
-              "removed": false
-            }
-          ],
-          "attemptToConvertTypes": false,
-          "convertFieldsToString": false
-        },
-        "options": {}
-      },
-      "type": "n8n-nodes-base.googleSheets",
-      "typeVersion": 4.7,
-      "position": [
-        1568,
-        -1664
-      ],
-      "id": "13495413-dfca-44f5-8eed-b49228e94c00",
-      "name": "Execution & Recommendation1",
-      "credentials": {
-        "googleSheetsOAuth2Api": {
-          "id": "qPcYFvcEFGVnuJDH",
-          "name": "Google Sheets account 2"
-        }
-      }
-    },
-    {
-      "parameters": {
-        "sendTo": "moathhazeem661@gmail.com",
-        "subject": "={{ $json.Metadata_Context.Decision }}",
-        "message": "=<div style=\"font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; color: #333333; background-color: #f9f9f9; direction: rtl; border-radius: 12px; box-shadow: 0 4px 10px rgba(0,0,0,0.05);\">\n  <div style=\"text-align: center; padding-bottom: 20px; border-bottom: 2px solid #eef2f3;\">\n    <h2 style=\"color: #4A5568; margin: 0; font-size: 24px;\">📊 تقرير البيانات التعريفية</h2>\n    <p style=\"color: #718096; font-size: 14px; margin-top: 5px;\">تفاصيل سياق القرار المستخرج.</p>\n  </div>\n\n  <div style=\"margin-top: 25px; background: #ffffff; padding: 22px; border-radius: 8px; border-right: 6px solid #4F46E5; box-shadow: 0 2px 5px rgba(0,0,0,0.02);\">\n    <h3 style=\"color: #4F46E5; margin-top: 0; font-size: 19px; border-bottom: 1px solid #F3F4F6; padding-bottom: 8px;\">🔍 تفاصيل القرار والسياق (Metadata)</h3>\n    <table style=\"width: 100%; margin-top: 15px; font-size: 15px; border-collapse: collapse;\">\n      <tr style=\"background: #F9FAFB;\"><td style=\"padding: 10px; font-weight: bold; width: 30%;\">المعرف البرمجي:</td><td style=\"padding: 10px; color: #4F46E5; font-family: monospace;\">{{ $json.Metadata_Context.ID }}</td></tr>\n      <tr><td style=\"padding: 10px; font-weight: bold;\">القرار المتخذ:</td><td style=\"padding: 10px; line-height: 1.5;\">{{ $json.Metadata_Context.Decision }}</td></tr>\n      <tr style=\"background: #F9FAFB;\"><td style=\"padding: 10px; font-weight: bold;\">تاريخ التسجيل:</td><td style=\"padding: 10px;\">{{ $json.Metadata_Context.Timestamp }}</td></tr>\n      <tr><td style=\"padding: 10px; font-weight: bold;\">تصنيف القرار:</td><td style=\"padding: 10px;\"><span style=\"background: #EEF2F6; padding: 4px 10px; border-radius: 6px; font-size: 13px; color: #312E81; font-weight: bold;\">{{ $json.Metadata_Context.Decision_Classification }}</span></td></tr>\n    </table>\n  </div>",
-        "options": {
-          "appendAttribution": false
-        }
-      },
-      "type": "n8n-nodes-base.gmail",
-      "typeVersion": 2.2,
-      "position": [
-        2048,
-        -48
-      ],
-      "id": "0cb6531f-a232-40c6-881b-9af738ccff41",
-      "name": "Send a message7",
-      "webhookId": "ff3c9f41-445a-4a65-bd70-8cf78d3fd0ec",
-      "credentials": {
-        "gmailOAuth2": {
-          "id": "9NcBOjKo4wAbWWGE",
-          "name": "Gmail account"
-        }
-      }
-    },
-    {
-      "parameters": {
-        "operation": "delete",
-        "documentId": {
-          "__rl": true,
-          "value": "1PxNA1-3gD350MTcTtqd5uViJ8SO0uX-WwnIigjleUZw",
-          "mode": "list",
-          "cachedResultName": "Automated Decision Support System",
-          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1PxNA1-3gD350MTcTtqd5uViJ8SO0uX-WwnIigjleUZw/edit?usp=drivesdk"
-        },
-        "sheetName": {
-          "__rl": true,
-          "value": 175016056,
-          "mode": "list",
-          "cachedResultName": "SWOT",
-          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1PxNA1-3gD350MTcTtqd5uViJ8SO0uX-WwnIigjleUZw/edit#gid=175016056"
-        },
-        "startIndex": "={{ $json.row_number }}"
-      },
-      "type": "n8n-nodes-base.googleSheets",
-      "typeVersion": 4.7,
-      "position": [
-        1648,
-        816
-      ],
-      "id": "737d8ace-87b3-402e-8544-80c41cc94db3",
-      "name": "Delete rows or columns from sheet4",
-      "credentials": {
-        "googleSheetsOAuth2Api": {
-          "id": "qPcYFvcEFGVnuJDH",
-          "name": "Google Sheets account 2"
-        }
-      }
-    },
-    {
-      "parameters": {
-        "documentId": {
-          "__rl": true,
-          "value": "1PxNA1-3gD350MTcTtqd5uViJ8SO0uX-WwnIigjleUZw",
-          "mode": "list",
-          "cachedResultName": "Automated Decision Support System",
-          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1PxNA1-3gD350MTcTtqd5uViJ8SO0uX-WwnIigjleUZw/edit?usp=drivesdk"
-        },
-        "sheetName": {
-          "__rl": true,
-          "value": 175016056,
-          "mode": "list",
-          "cachedResultName": "SWOT",
-          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1PxNA1-3gD350MTcTtqd5uViJ8SO0uX-WwnIigjleUZw/edit#gid=175016056"
-        },
-        "options": {}
-      },
-      "type": "n8n-nodes-base.googleSheets",
-      "typeVersion": 4.7,
-      "position": [
-        1472,
-        816
-      ],
-      "id": "81d112d9-c719-4bb7-bceb-0f5255962a45",
-      "name": "Get row(s) in sheet4",
-      "credentials": {
-        "googleSheetsOAuth2Api": {
-          "id": "qPcYFvcEFGVnuJDH",
-          "name": "Google Sheets account 2"
-        }
-      }
-    },
-    {
-      "parameters": {
-        "jsCode": "// 1. جلب البيانات من كافة العقد والشيتات المتفرقة\nconst Metadata_Context = $(\"Metadata & Context\").first().json;\nconst Quantitative_Scoring = $(\"Quantitative Scoring\").first().json;\nconst Qualitative_Analysis_Diagnosis = $(\"Qualitative Analysis & Diagnosis\").first().json;\nconst Execution_Recommendation = $(\"Execution & Recommendation\").first().json;\nconst SWOT = $(\"SWOT\").first().json;\n\n// 2. تجميع الحقول الموحدة المطلوبة للإيميل والـ IF\nreturn [\n  {\n    json: {\n      // جلب الـ ID من أي شيت متاح فيه\n      ID: Metadata_Context.ID || Quantitative_Scoring.ID || Qualitative_Analysis_Diagnosis.ID || Execution_Recommendation.ID || SWOT.ID, \n      \n      // جلب اسم القرار (يدعم التسمية العادية أو التسمية الخاصة بالـ AI)\n      Decision: Metadata_Context.Decision || Metadata_Context.decision_title || Quantitative_Scoring.Decision || Quantitative_Scoring.decision_title || Qualitative_Analysis_Diagnosis.Decision || Qualitative_Analysis_Diagnosis.decision_title || Execution_Recommendation.Decision || Execution_Recommendation.decision_title || SWOT.Decision || SWOT.decision_title, \n      \n      // جلب التوقيت (من الشيت الأساسي أو شيتات التقييم، وإذا لم يوجد يضع الوقت الحالي)\n      Timestamp: Metadata_Context.Timestamp || Metadata_Context.date || Quantitative_Scoring.Timestamp || Quantitative_Scoring.date || new Date().toISOString(), \n      \n      // جلب الأولوية من شيت التحليل النوعي أو شيت التوصيات\n      Priority: Qualitative_Analysis_Diagnosis.Priority || Execution_Recommendation.Priority || \"Medium\", \n      \n      // جلب خطة العمل من شيت التوصيات التنفيذية\n      Action_Plan: Execution_Recommendation.Action_Plan || Execution_Recommendation['Action Plan'] || \"لا يوجد خطة عمل حالية\"\n    }\n  }\n];"
-      },
-      "type": "n8n-nodes-base.code",
-      "typeVersion": 2,
-      "position": [
-        2096,
-        -1296
-      ],
-      "id": "0b2e7908-8253-4947-9f5b-7634cc51cc03",
-      "name": "Code in JavaScript1"
-    },
-    {
-      "parameters": {
-        "jsCode": "// دالة مساعدة لجلب البيانات بأمان دون كسر الكود إذا كانت العقدة غير مفعلة أو لم يتم المرور عليها\nfunction getSafeJson(nodeName) {\n  try {\n    const node = $(nodeName);\n    if (node && typeof node.first === 'function') {\n      const firstItem = node.first();\n      if (firstItem && firstItem.json) {\n        return firstItem.json;\n      }\n    }\n  } catch (e) {\n    // في حال عدم وجود العقدة في المسار الحالي (مثل حالات الحذف) يتم تجاهل الخطأ وإرجاع كائن فارغ\n  }\n  return {};\n}\n\n// 1. جلب البيانات بأمان من كافة العقد والشيتات المتفرقة\nconst Metadata_Context = getSafeJson(\"Metadata & Context\");\nconst Quantitative_Scoring = getSafeJson(\"Quantitative Scoring\");\nconst Qualitative_Analysis_Diagnosis = getSafeJson(\"Qualitative Analysis & Diagnosis\");\nconst Execution_Recommendation = getSafeJson(\"Execution & Recommendation\");\nconst SWOT = getSafeJson(\"SWOT\");\n\n// 2. تجميع الحقول الموحدة (ستأخذ قيمتها من الشيت النشط فقط سواء كان تحليل أو حذف)\nreturn [\n  {\n    json: {\n      // جلب الـ ID من الشيت المتوفر حالياً\n      ID: Metadata_Context.ID || Quantitative_Scoring.ID || Qualitative_Analysis_Diagnosis.ID || Execution_Recommendation.ID || SWOT.ID || null, \n      \n      // جلب اسم القرار أو موضوع الحذف المتوفر\n      Decision: Metadata_Context.Decision || Metadata_Context.decision_title || \n                Quantitative_Scoring.Decision || Quantitative_Scoring.decision_title || \n                Qualitative_Analysis_Diagnosis.Decision || Qualitative_Analysis_Diagnosis.decision_title || \n                Execution_Recommendation.Decision || Execution_Recommendation.decision_title || \n                SWOT.Decision || SWOT.decision_title || \"إجراء حذف / تعديل مقيد\", \n      \n      // جلب التوقيت المتاح، أو وضع التوقيت الحالي\n      Timestamp: Metadata_Context.Timestamp || Metadata_Context.date || \n                 Quantitative_Scoring.Timestamp || Quantitative_Scoring.date || \n                 Qualitative_Analysis_Diagnosis.Timestamp || Execution_Recommendation.Timestamp ||\n                 new Date().toISOString(), \n      \n      // جلب الأولوية إن وجدت\n      Priority: Qualitative_Analysis_Diagnosis.Priority || Execution_Recommendation.Priority || \"Medium\", \n      \n      // جلب خطة العمل إن وجدت\n      Action_Plan: Execution_Recommendation.Action_Plan || Execution_Recommendation['Action Plan'] || \"تم تنفيذ إجراء الحذف بنجاح\"\n    }\n  }\n];"
-      },
-      "type": "n8n-nodes-base.code",
-      "typeVersion": 2,
-      "position": [
-        2048,
-        448
-      ],
-      "id": "d80cfd65-2492-4a43-9110-7f3671b33a77",
-      "name": "Code in JavaScript2"
-    },
-    {
-      "parameters": {
-        "hasOutputParser": true,
-        "options": {
-          "systemMessage": "=أنت مساعد ذكي ونظام لدعم اتخاذ القرار (Automated Decision Support System).\nمهمتك هي استقبال قرارات المستخدم وتصنيفها وتحليلها، ثم استخدام الأدوات المتاحة لديك (Google Sheets Tools) لتحديث التابات المناسبة بناءً على نوع التحليل.\n\nلديك الوصول إلى التابات التالية عبر الأدوات:\n1. Metadata & Context: لمعلومات القرار الأساسية وتصنيفه.\n2. Quantitative Scoring: للتقييم الرقمي والكمي.\n3. Qualitative Analysis & Diagnosis: للتحليل النوعي والتشخيص.\n4. Execution & Recommendation: للتوصيات والخطوات القادمة.\n\nعندما يطلب المستخدم تحليل قرار، قم أولاً بتحليله منطقياً، ثم استدعِ الأدوات المناسبة لحفظ كل جزء من التحليل في التابة المخصصة له في Google Sheets."
-        }
-      },
-      "type": "@n8n/n8n-nodes-langchain.agent",
-      "typeVersion": 3.1,
-      "position": [
-        2464,
-        -304
-      ],
-      "id": "39f824ed-4858-4027-b2d2-11f27f114ca3",
-      "name": "AI Agent1",
-      "alwaysOutputData": false
-    },
-    {
-      "parameters": {
-        "contextWindowLength": 1
-      },
-      "type": "@n8n/n8n-nodes-langchain.memoryBufferWindow",
-      "typeVersion": 1.4,
-      "position": [
-        2416,
-        -112
-      ],
-      "id": "5cd29a7b-99b6-4b42-820b-80740905a36c",
-      "name": "Simple Memory1"
-    },
-    {
-      "parameters": {
-        "modelName": "models/gemini-3.1-flash-lite",
-        "options": {}
-      },
-      "type": "@n8n/n8n-nodes-langchain.lmChatGoogleGemini",
-      "typeVersion": 1.1,
-      "position": [
-        2272,
-        -128
-      ],
-      "id": "fd162c9e-22b3-44a7-92dc-81343b63cc0f",
-      "name": "Google Gemini Chat Model2",
-      "credentials": {
-        "googlePalmApi": {
-          "id": "5bQnUFfdkzbJs3Ln",
-          "name": "Google Gemini(PaLM) Api account 2"
-        }
-      }
-    },
-    {
-      "parameters": {
-        "jsCode": "/**\n * n8n Code Node — \"Calculate Delete Count + Sheet Routing + Email Flag\"\n * ------------------------------------------------\n * يُوضع بعد AI Agent node مباشرة.\n *\n * يتعامل مع مدخلين منفصلين قادمين من AI Agent:\n *\n * (A) مسار الحذف:\n * {\n *   action_type: \"delete\" | \"unclear\",\n *   target_decision_id: \"LAST\" | null,\n *   delete_search_term: string | null,\n *   delete_count_raw: string,\n *   delete_scope: \"last_n\" | \"single_last\" | \"by_search_term\" | \"all\"\n * }\n * → يُخرج: { action_type, target_decision_id, delete_search_term, delete_count }\n *\n * (B) مسار الرسالة/التحليل ($json.message + $json.send_email):\n * message = JSON منظم من AI Agent بـ 4 حقول:\n *   { metadata_context, quantitative_scoring, qualitative_analysis_diagnosis, execution_recommendation }\n * send_email = نص خام من AI Agent يدل على نية إرسال إيميل (مثل: \"نعم\"، \"بدي ايميل\"، \"\" ، null...)\n *\n * → يُخرج:\n * {\n *   sheets: {\n *     metadata_context: {...} | string,\n *     quantitative_scoring: {...} | string,\n *     qualitative_analysis_diagnosis: {...} | string,\n *     execution_recommendation: {...} | string\n *   },\n *   send_email: true | false   // boolean نهائي حتمي، فقط لو طلب صريح\n * }\n */\n\n// ---------- 1) قاموس الأرقام العربية (قابل للتوسعة من نقطة واحدة) ----------\nconst ARABIC_NUMBER_MAP = {\n  // المفرد / المثنى الخاص بكلمة \"قرار\"\n  \"قرار\": 1,\n  \"قرارين\": 2,\n  \"قراران\": 2,\n\n  // الأرقام الأساسية (مع/بدون تاء مربوطة، أخطاء إملائية شائعة)\n  \"واحد\": 1, \"واحدة\": 1,\n  \"اثنين\": 2, \"اثنان\": 2, \"ثنين\": 2,\n  \"ثلاثة\": 3, \"ثلاثه\": 3, \"تلاتة\": 3, \"تلاته\": 3,\n  \"اربعة\": 4, \"أربعة\": 4, \"اربعه\": 4, \"أربعه\": 4,\n  \"خمسة\": 5, \"خمسه\": 5,\n  \"ستة\": 6, \"سته\": 6,\n  \"سبعة\": 7, \"سبعه\": 7,\n  \"ثمانية\": 8, \"ثمانيه\": 8, \"تمانية\": 8,\n  \"تسعة\": 9, \"تسعه\": 9,\n  \"عشرة\": 10, \"عشره\": 10,\n\n  // صيغ مختصرة شائعة في العامية\n  \"خمس\": 5,\n  \"عشر\": 10,\n  \"تلات\": 3,\n  \"اربع\": 4,\n  \"ست\": 6,\n  \"سبع\": 7,\n  \"تمن\": 8,\n  \"تسع\": 9,\n};\n\n// ---------- 2) دالة استخراج أرقام إنجليزية (مع دعم الأرقام العربية ٠-٩) ----------\nfunction extractDigitNumber(text) {\n  if (!text) return null;\n\n  // تحويل الأرقام العربية-هندية (٠١٢٣٤٥٦٧٨٩) إلى لاتينية\n  const arabicIndicDigits = \"٠١٢٣٤٥٦٧٨٩\";\n  let normalized = text.replace(/[٠-٩]/g, (d) => arabicIndicDigits.indexOf(d));\n\n  const match = normalized.match(/\\d+/);\n  if (match) {\n    const num = parseInt(match[0], 10);\n    if (!isNaN(num) && num > 0) return num;\n  }\n  return null;\n}\n\n// ---------- 3) دالة استخراج العدد من كلمات عربية ----------\nfunction extractWordNumber(text) {\n  if (!text) return null;\n\n  // تنظيف النص: إزالة \"ال\" التعريف، علامات تشكيل، مسافات زائدة\n  const cleaned = text\n    .trim()\n    .replace(/^ال/, \"\")\n    .replace(/[\\u064B-\\u0652]/g, \"\"); // إزالة التشكيل\n\n  // مطابقة مباشرة\n  if (ARABIC_NUMBER_MAP.hasOwnProperty(cleaned)) {\n    return ARABIC_NUMBER_MAP[cleaned];\n  }\n\n  // مطابقة جزئية (في حال احتوى النص على كلمة الرقم ضمن جملة أطول)\n  for (const [word, value] of Object.entries(ARABIC_NUMBER_MAP)) {\n    if (cleaned.includes(word)) {\n      return value;\n    }\n  }\n\n  return null;\n}\n\n// ---------- 4) الدالة الرئيسية لحساب delete_count ----------\nfunction resolveDeleteCount(parsed) {\n  const scope = parsed.delete_scope;\n  const raw = (parsed.delete_count_raw || \"\").trim();\n  const searchTerm = parsed.delete_search_term;\n\n  // الحالة أ: الحذف بالاسم/الموضوع — العدد = عدد المصطلحات المفصولة بفاصلة\n  if (scope === \"by_search_term\" && searchTerm) {\n    const terms = searchTerm\n      .split(/[,،]/)\n      .map((t) => t.trim())\n      .filter((t) => t.length > 0);\n    return Math.max(terms.length, 1);\n  }\n\n  // الحالة ب: \"احذف آخر قرار\" بدون عدد\n  if (scope === \"single_last\" || !raw) {\n    return 1;\n  }\n\n  // الحالة ج: \"آخر N قرار/قرارات\" — جرب الأرقام الرقمية أولاً\n  const digitNum = extractDigitNumber(raw);\n  if (digitNum !== null) return digitNum;\n\n  // ثم جرب الكلمات العربية\n  const wordNum = extractWordNumber(raw);\n  if (wordNum !== null) return wordNum;\n\n  // الحالة الافتراضية: تعذر تحديد العدد بوضوح\n  return 1;\n}\n\n// ---------- 5) دالة استخراج نية إرسال الإيميل (boolean حتمي) ----------\n// قاعدة العمل: send_email = true فقط لو المستخدم طلب صراحة (بدي ايميل / ابعتلي ايميل / اي صيغة تأكيد واضحة)\n// أي غموض أو سكوت = false (الافتراضي الآمن، عشان ما نبعت ايميلات غير مطلوبة)\nconst EMAIL_POSITIVE_PATTERNS = [\n  \"بدي ايميل\",\n  \"بدي إيميل\",\n  \"ابعتلي ايميل\",\n  \"ابعتلي إيميل\",\n  \"ابعت ايميل\",\n  \"ابعت إيميل\",\n  \"بعتلي ايميل\",\n  \"ارسل ايميل\",\n  \"أرسل إيميل\",\n  \"ارسلي ايميل\",\n  \"ايميلي\",\n  \"إيميلي\",\n  \"send email\",\n  \"email me\",\n];\n\nconst EMAIL_NEGATIVE_PATTERNS = [\n  \"لا تبعت\",\n  \"ما بدي ايميل\",\n  \"ما بدي إيميل\",\n  \"بدون ايميل\",\n  \"بلا ايميل\",\n  \"no email\",\n];\n\nfunction resolveSendEmail(rawValue) {\n  // قبول boolean مباشر إذا أرسله AI Agent مسبقاً كـ boolean حقيقي\n  if (typeof rawValue === \"boolean\") return rawValue;\n\n  if (rawValue === null || rawValue === undefined) return false;\n\n  const text = String(rawValue).trim().toLowerCase();\n  if (text.length === 0) return false;\n\n  // فحص النفي أولاً (أولوية أعلى، لتجنب \"ما بدي ايميل\" يصير true بسبب وجود كلمة \"ايميل\")\n  for (const neg of EMAIL_NEGATIVE_PATTERNS) {\n    if (text.includes(neg)) return false;\n  }\n\n  for (const pos of EMAIL_POSITIVE_PATTERNS) {\n    if (text.includes(pos)) return true;\n  }\n\n  // فحص أضيق لـ \"نعم\"/\"yes\"/\"true\" بدون تضارب مع \"لا\"/كلمات أخرى تحتوي \"نعم\" كجزء (نادر بالعربي لكن للأمان)\n  if (text === \"نعم\" || text === \"yes\" || text === \"true\" || text === \"1\") {\n    return true;\n  }\n  if (text === \"لا\" || text === \"no\" || text === \"false\" || text === \"0\") {\n    return false;\n  }\n\n  // الافتراضي الآمن: لا إرسال إيميل بدون طلب صريح وواضح\n  return false;\n}\n\n// ---------- 6) دالة تجهيز الأقسام الأربعة (Sheets Routing) ----------\n// تقبل message كـ object جاهز أو نص JSON يحتاج parse\nconst SHEET_KEYS = [\n  \"metadata_context\",\n  \"quantitative_scoring\",\n  \"qualitative_analysis_diagnosis\",\n  \"execution_recommendation\",\n];\n\nfunction resolveSheets(messageInput) {\n  let messageObj;\n\n  if (typeof messageInput === \"string\") {\n    try {\n      messageObj = JSON.parse(messageInput);\n    } catch (err) {\n      // النص ليس JSON صالحاً — رجّع خطأ واضح بدل تخمين تقسيم خاطئ\n      return {\n        error: \"تعذر تحليل message كـ JSON منظم بالأقسام الأربعة\",\n        raw_message: messageInput,\n      };\n    }\n  } else if (typeof messageInput === \"object\" && messageInput !== null) {\n    messageObj = messageInput;\n  } else {\n    return {\n      error: \"message غير موجود أو بصيغة غير متوقعة\",\n      raw_message: messageInput,\n    };\n  }\n\n  const sheets = {};\n  const missingKeys = [];\n\n  for (const key of SHEET_KEYS) {\n    if (messageObj.hasOwnProperty(key)) {\n      sheets[key] = messageObj[key];\n    } else {\n      sheets[key] = null;\n      missingKeys.push(key);\n    }\n  }\n\n  if (missingKeys.length > 0) {\n    sheets._warning = `حقول ناقصة من AI Agent: ${missingKeys.join(\", \")}`;\n  }\n\n  return sheets;\n}\n\n// ---------- 7) نقطة الدخول داخل n8n Code Node ----------\n\n// ملاحظة: عدّل المسار حسب شكل خرج AI Agent node عندك.\nconst rawOutput = $input.item.json.output ?? $input.item.json.text ?? $input.item.json;\nconst hasMessageOrEmail =\n  $input.item.json.message !== undefined || $input.item.json.send_email !== undefined;\n\n// ===== المسار B: رسالة منظمة (4 فئات) + نية إيميل =====\n// يُفعّل هذا المسار إذا كان $json.message أو $json.send_email موجودين في المدخل.\nif (hasMessageOrEmail) {\n  const sheets = resolveSheets($input.item.json.message);\n  const send_email = resolveSendEmail($input.item.json.send_email);\n\n  return [\n    {\n      json: {\n        sheets,\n        send_email,\n      },\n    },\n  ];\n}\n\n// ===== المسار A: نية حذف (delete_count) =====\nlet parsed;\n\ntry {\n  parsed = typeof rawOutput === \"string\" ? JSON.parse(rawOutput) : rawOutput;\n} catch (err) {\n  // فشل تحليل JSON من LLM — رجّع خطأ واضح بدل كسر الـ workflow\n  return [\n    {\n      json: {\n        action_type: \"error\",\n        error: \"فشل تحليل خرج AI Agent كـ JSON\",\n        raw_output: rawOutput,\n      },\n    },\n  ];\n}\n\nif (parsed.action_type !== \"delete\") {\n  // لا توجد نية حذف — مرّر كما هو\n  return [{ json: parsed }];\n}\n\nconst delete_count = resolveDeleteCount(parsed);\n\nconst result = {\n  action_type: \"delete\",\n  target_decision_id: parsed.target_decision_id ?? null,\n  delete_search_term: parsed.delete_search_term ?? null,\n  delete_count: delete_count,\n};\n\nreturn [{ json: result }];\n"
-      },
-      "type": "n8n-nodes-base.code",
-      "typeVersion": 2,
-      "position": [
-        2848,
-        -304
-      ],
-      "id": "76b36b49-dfaa-44ad-a15b-c99bcda292b0",
-      "name": "Code in JavaScript3"
-    },
-    {
-      "parameters": {
-        "documentId": {
-          "__rl": true,
-          "value": "1PxNA1-3gD350MTcTtqd5uViJ8SO0uX-WwnIigjleUZw",
-          "mode": "list",
-          "cachedResultName": "Automated Decision Support System",
-          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1PxNA1-3gD350MTcTtqd5uViJ8SO0uX-WwnIigjleUZw/edit?usp=drivesdk"
-        },
-        "sheetName": {
-          "__rl": true,
-          "value": "gid=0",
-          "mode": "list",
-          "cachedResultName": "Metadata & Context",
-          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1PxNA1-3gD350MTcTtqd5uViJ8SO0uX-WwnIigjleUZw/edit#gid=0"
-        },
-        "options": {}
-      },
-      "type": "n8n-nodes-base.googleSheetsTool",
-      "typeVersion": 4.7,
-      "position": [
-        2240,
-        256
-      ],
-      "id": "4ec0347b-5ce1-40a7-a2aa-15fd8088edc2",
-      "name": "Metadata & Context Get Row1",
-      "credentials": {
-        "googleSheetsOAuth2Api": {
-          "id": "qPcYFvcEFGVnuJDH",
-          "name": "Google Sheets account 2"
-        }
-      }
-    },
-    {
-      "parameters": {
-        "documentId": {
-          "__rl": true,
-          "value": "1PxNA1-3gD350MTcTtqd5uViJ8SO0uX-WwnIigjleUZw",
-          "mode": "list",
-          "cachedResultName": "Automated Decision Support System",
-          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1PxNA1-3gD350MTcTtqd5uViJ8SO0uX-WwnIigjleUZw/edit?usp=drivesdk"
-        },
-        "sheetName": {
-          "__rl": true,
-          "value": 651189005,
-          "mode": "list",
-          "cachedResultName": "Execution & Recommendation",
-          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1PxNA1-3gD350MTcTtqd5uViJ8SO0uX-WwnIigjleUZw/edit#gid=651189005"
-        },
-        "options": {}
-      },
-      "type": "n8n-nodes-base.googleSheetsTool",
-      "typeVersion": 4.7,
-      "position": [
-        2400,
-        256
-      ],
-      "id": "3e4e24d9-f76a-4df9-8355-bb66df32716b",
-      "name": "Execution & Recommendation Get row1",
-      "credentials": {
-        "googleSheetsOAuth2Api": {
-          "id": "qPcYFvcEFGVnuJDH",
-          "name": "Google Sheets account 2"
-        }
-      }
-    },
-    {
-      "parameters": {
-        "descriptionType": "manual",
-        "toolDescription": "Use this tool to save and append the core metadata, decision text, and context of the strategic choices into the Google Sheet.",
-        "documentId": {
-          "__rl": true,
-          "value": "1PxNA1-3gD350MTcTtqd5uViJ8SO0uX-WwnIigjleUZw",
-          "mode": "list",
-          "cachedResultName": "Automated Decision Support System",
-          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1PxNA1-3gD350MTcTtqd5uViJ8SO0uX-WwnIigjleUZw/edit?usp=drivesdk"
-        },
-        "sheetName": {
-          "__rl": true,
-          "value": 1932691692,
-          "mode": "list",
-          "cachedResultName": "Quantitative Scoring",
-          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1PxNA1-3gD350MTcTtqd5uViJ8SO0uX-WwnIigjleUZw/edit#gid=1932691692"
-        },
-        "options": {}
-      },
-      "type": "n8n-nodes-base.googleSheetsTool",
-      "typeVersion": 4.7,
-      "position": [
-        2560,
-        256
-      ],
-      "id": "a61716a5-5ab0-4913-b49b-45e5e9fe23ca",
-      "name": "Quantitative scoring_Get_Row1",
-      "credentials": {
-        "googleSheetsOAuth2Api": {
-          "id": "qPcYFvcEFGVnuJDH",
-          "name": "Google Sheets account 2"
-        }
-      }
-    },
-    {
-      "parameters": {
-        "documentId": {
-          "__rl": true,
-          "value": "1PxNA1-3gD350MTcTtqd5uViJ8SO0uX-WwnIigjleUZw",
-          "mode": "list",
-          "cachedResultName": "Automated Decision Support System",
-          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1PxNA1-3gD350MTcTtqd5uViJ8SO0uX-WwnIigjleUZw/edit?usp=drivesdk"
-        },
-        "sheetName": {
-          "__rl": true,
-          "value": 1917721808,
-          "mode": "list",
-          "cachedResultName": "Qualitative Analysis & Diagnosis",
-          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1PxNA1-3gD350MTcTtqd5uViJ8SO0uX-WwnIigjleUZw/edit#gid=1917721808"
-        },
-        "options": {}
-      },
-      "type": "n8n-nodes-base.googleSheetsTool",
-      "typeVersion": 4.7,
-      "position": [
-        2720,
-        256
-      ],
-      "id": "007c73f2-934c-4bd1-8341-49dbedeadb8f",
-      "name": "Qualitative analysis & Diagnosis_get_row1",
-      "credentials": {
-        "googleSheetsOAuth2Api": {
-          "id": "qPcYFvcEFGVnuJDH",
-          "name": "Google Sheets account 2"
-        }
-      }
-    },
-    {
-      "parameters": {
         "options": {}
       },
       "type": "@n8n/n8n-nodes-langchain.chatTrigger",
@@ -1956,39 +80,6 @@
       ],
       "id": "cc2b10fd-654e-4fa5-baaa-87d38cb3bf2f",
       "name": "Code in JavaScript4"
-    },
-    {
-      "parameters": {
-        "conditions": {
-          "options": {
-            "caseSensitive": true,
-            "leftValue": "",
-            "typeValidation": "strict",
-            "version": 3
-          },
-          "conditions": [
-            {
-              "id": "044296d7-aaad-46a2-a6e3-03fab1a37224",
-              "leftValue": "={{ $json.raw_output.action_type }}",
-              "rightValue": "delete",
-              "operator": {
-                "type": "string",
-                "operation": "notEquals"
-              }
-            }
-          ],
-          "combinator": "and"
-        },
-        "options": {}
-      },
-      "type": "n8n-nodes-base.if",
-      "typeVersion": 2.3,
-      "position": [
-        448,
-        1152
-      ],
-      "id": "bdb4d78e-9892-4087-9810-af1099571358",
-      "name": "If4"
     },
     {
       "parameters": {
@@ -2544,556 +635,489 @@
           "name": "Google Sheets account 2"
         }
       }
+    },
+    {
+      "parameters": {
+        "pollTimes": {
+          "item": [
+            {
+              "mode": "everyMinute"
+            }
+          ]
+        },
+        "documentId": {
+          "__rl": true,
+          "value": "1PxNA1-3gD350MTcTtqd5uViJ8SO0uX-WwnIigjleUZw",
+          "mode": "list",
+          "cachedResultName": "Automated Decision Support System",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1PxNA1-3gD350MTcTtqd5uViJ8SO0uX-WwnIigjleUZw/edit?usp=drivesdk"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": 1376153753,
+          "mode": "list",
+          "cachedResultName": "Review",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1PxNA1-3gD350MTcTtqd5uViJ8SO0uX-WwnIigjleUZw/edit#gid=1376153753"
+        },
+        "event": "rowAdded",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheetsTrigger",
+      "typeVersion": 1,
+      "position": [
+        -576,
+        2128
+      ],
+      "id": "42b14182-84a8-41d6-95bd-fc49426a4084",
+      "name": "Google Sheets Trigger",
+      "credentials": {
+        "googleSheetsTriggerOAuth2Api": {
+          "id": "5ILyhPQ03kHiwfqL",
+          "name": "Google Sheets Trigger account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "=يرجى تحليل البيانات التالية الخاصة بالقرار المأخوذ:\n- رقم القرار (ID): {{ typeof $json[\"ID\"] === 'string' && $json[\"ID\"].includes('/') ? Math.round((new Date($json[\"ID\"]) - new Date('1899-12-30')) / (1000 * 60 * 60 * 24)) : $json[\"ID\"] }}\n- اسم القرار (Decision Name): {{ $json['Descision Name'] }}\n- النتيجة الفعلية (Actual Outcome): {{ $json[\"Actual Outcome\"] }}\n- تقييم النتيجة (Outcome Rating): {{ typeof $json[\"Outcome Rating\"] === 'string' && $json[\"Outcome Rating\"].includes('/') ? Math.round((new Date($json[\"Outcome Rating\"]) - new Date('1899-12-30')) / (1000 * 60 * 60 * 24)) : $json[\"Outcome Rating\"] }}\n- عوامل غير متوقعة (Unexpected Factors): {{ $json[\"Unexpected Factors\"] }}\n- تاريخ المراجعة (Date of Reflection): {{ $json[\"Date of Reflection\"] }}\n\nبناءً على الـ System Message، قم بتقديم التحليل المطلوب.",
+        "hasOutputParser": true,
+        "options": {
+          "systemMessage": "You are an expert in analyzing administrative and personal decisions. You have data on a decision that was previously made (the original decision) and data on the actual result after implementation. Your task is to compare what was expected with what actually happened, classify the \"Actual Outcome\" as either good or bad based on the descriptive text and the \"Outcome Rating\", and extract strengths or weaknesses accordingly.\n\nCRITICAL INSTRUCTIONS FOR CLASSIFICATION & ANALYSIS:\n1. Classification Rule: Evaluate the combination of \"Actual Outcome\" text and \"Outcome Rating\". If the rating is 5 or above and the outcome text is generally positive, classify the context as a \"Good Outcome\". If the rating is below 5 or the outcome text reflects failure/struggle, classify it as a \"Bad Outcome\".\n2. Dynamic JSON Output Selection:\n   - If the outcome is classified as GOOD: Fill the \"strengths\" array with key success factors, and LEAVE the \"weaknesses\" array completely EMPTY []. Do not invent weaknesses.\n   - If the outcome is classified as BAD: Fill the \"weaknesses\" array with failure points and bottlenecks, and LEAVE the \"strengths\" array completely EMPTY []. Do not invent strengths.\n3. Recommendations: In both cases, provide actionable \"recommendations\" for future decision-making or corrective actions.\n"
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 3.1,
+      "position": [
+        -320,
+        2128
+      ],
+      "id": "0d03dac2-cdd9-4d70-bdf0-a5b51210bd84",
+      "name": "AI Agent"
+    },
+    {
+      "parameters": {
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatGoogleGemini",
+      "typeVersion": 1.1,
+      "position": [
+        -320,
+        2336
+      ],
+      "id": "37e0a238-1560-4740-8e41-ae666e7fce9c",
+      "name": "Google Gemini Chat Model",
+      "credentials": {
+        "googlePalmApi": {
+          "id": "5bQnUFfdkzbJs3Ln",
+          "name": "Google Gemini(PaLM) Api account 2"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "documentId": {
+          "__rl": true,
+          "value": "1PxNA1-3gD350MTcTtqd5uViJ8SO0uX-WwnIigjleUZw",
+          "mode": "list",
+          "cachedResultName": "Automated Decision Support System",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1PxNA1-3gD350MTcTtqd5uViJ8SO0uX-WwnIigjleUZw/edit?usp=drivesdk"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": 1376153753,
+          "mode": "list",
+          "cachedResultName": "Review",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1PxNA1-3gD350MTcTtqd5uViJ8SO0uX-WwnIigjleUZw/edit#gid=1376153753"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheetsTool",
+      "typeVersion": 4.7,
+      "position": [
+        -128,
+        2320
+      ],
+      "id": "2b260c7f-e659-45d8-88df-e797656f273a",
+      "name": "Metadata & Context Get Row",
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "qPcYFvcEFGVnuJDH",
+          "name": "Google Sheets account 2"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "documentId": {
+          "__rl": true,
+          "value": "1PxNA1-3gD350MTcTtqd5uViJ8SO0uX-WwnIigjleUZw",
+          "mode": "list",
+          "cachedResultName": "Automated Decision Support System",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1PxNA1-3gD350MTcTtqd5uViJ8SO0uX-WwnIigjleUZw/edit?usp=drivesdk"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": 1183008931,
+          "mode": "list",
+          "cachedResultName": "Descisions",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1PxNA1-3gD350MTcTtqd5uViJ8SO0uX-WwnIigjleUZw/edit#gid=1183008931"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheetsTool",
+      "typeVersion": 4.7,
+      "position": [
+        -224,
+        2320
+      ],
+      "id": "98b942f6-4954-4e15-94ee-ca7a4353a37f",
+      "name": "Metadata & Context Get Row1",
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "qPcYFvcEFGVnuJDH",
+          "name": "Google Sheets account 2"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "rules": {
+          "values": [
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 3
+                },
+                "conditions": [
+                  {
+                    "leftValue": "={{ $('Google Sheets Trigger').item.json[\"Outcome Rating\"] }}",
+                    "rightValue": 5,
+                    "operator": {
+                      "type": "number",
+                      "operation": "lt"
+                    },
+                    "id": "060a5c3a-90d1-4d74-b4e2-3b6af00cd44a"
+                  }
+                ],
+                "combinator": "and"
+              }
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 3
+                },
+                "conditions": [
+                  {
+                    "id": "c05c6d4b-cf4d-4fce-8a2b-22c3aa587f05",
+                    "leftValue": "={{ $('Google Sheets Trigger').item.json[\"Outcome Rating\"] }}",
+                    "rightValue": 5,
+                    "operator": {
+                      "type": "number",
+                      "operation": "gte"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              }
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.switch",
+      "typeVersion": 3.4,
+      "position": [
+        32,
+        2128
+      ],
+      "id": "cfa8db53-404f-4d4e-9b8e-77a7444ab1a8",
+      "name": "Switch"
+    },
+    {
+      "parameters": {
+        "schemaType": "manual",
+        "inputSchema": "{\n  \"type\": \"object\",\n  \"properties\": {\n    \"decision_summary\": {\n      \"type\": \"string\"\n    },\n    \"strengths\": {\n      \"type\": \"array\",\n      \"items\": {\n        \"type\": \"string\"\n      }\n    },\n    \"weaknesses\": {\n      \"type\": \"array\",\n      \"items\": {\n        \"type\": \"string\"\n      }\n    },\n    \"recommendations\": {\n      \"type\": \"array\",\n      \"items\": {\n        \"type\": \"string\"\n      }\n    }\n  },\n  \"required\": [\"decision_summary\", \"strengths\", \"weaknesses\", \"recommendations\"]\n}"
+      },
+      "type": "@n8n/n8n-nodes-langchain.outputParserStructured",
+      "typeVersion": 1.3,
+      "position": [
+        0,
+        2336
+      ],
+      "id": "e553b442-651f-45ae-883b-75f1a03728dd",
+      "name": "Structured Output Parser"
+    },
+    {
+      "parameters": {
+        "sendTo": "moathhazeem661@gmail.com",
+        "subject": "مشاكل للقرار ",
+        "message": "=<!DOCTYPE html>\n<html dir=\"rtl\" lang=\"ar\">\n<head>\n    <meta charset=\"UTF-8\">\n    <title>تحليل قرار: يتطلب تحسين ومراجعة</title>\n    <style>\n        @import url('https://fonts.googleapis.com/css2?family=Tajawal:wght@400;500;700&display=swap');\n        * { box-sizing: border-box; }\n        body {\n            font-family: 'Tajawal', 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;\n            background-color: #f7f9fc; color: #333333; line-height: 1.6; margin: 0; padding: 0;\n        }\n        .email-container {\n            max-width: 600px; margin: 30px auto; background: #ffffff; border-radius: 12px;\n            overflow: hidden; box-shadow: 0 4px 15px rgba(0,0,0,0.05); border: 1px solid #eef2f6;\n        }\n        .header-banner {\n            background-color: #5c1d1d; padding: 35px 30px; text-align: center; color: #ffffff;\n            border-bottom: 4px solid #9b2226;\n        }\n        .header-banner h1 { font-size: 22px; margin: 0 0 10px 0; font-weight: 700; }\n        .header-banner p { font-size: 13px; margin: 0; opacity: 0.9; }\n        .content-body { padding: 30px; }\n        .rating-badge-container { text-align: center; margin-bottom: 25px; }\n        .rating-badge {\n            display: inline-block; background-color: #fbc4b6; color: #5c1d1d;\n            padding: 8px 20px; border-radius: 30px; font-weight: 700; font-size: 15px;\n        }\n        .section-title {\n            font-size: 16px; font-weight: 700; color: #5c1d1d; margin-top: 0; margin-bottom: 12px;\n            border-right: 4px solid #9b2226; padding-right: 10px;\n        }\n        .data-card { background-color: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 20px; margin-bottom: 25px; }\n        .data-row { margin-bottom: 12px; font-size: 14px; }\n        .data-label { font-weight: 700; color: #4a5568; display: inline-block; width: 130px; }\n        .data-value { color: #1a202c; }\n        .ai-analysis-box {\n            background-color: #fff5f5; border: 1px dashed #9b2226; border-radius: 8px; padding: 20px; margin-bottom: 25px;\n        }\n        .summary-text { font-size: 14px; color: #2d3748; margin-bottom: 15px; text-align: justify; }\n        .list-title { font-size: 14px; font-weight: 700; margin-bottom: 8px; }\n        .analysis-list { margin: 0 0 15px 0; padding-right: 20px; font-size: 13.5px; color: #4a5568; }\n        .analysis-list li { margin-bottom: 6px; }\n        .footer { background-color: #f1f5f9; padding: 20px; text-align: center; font-size: 12px; color: #94a3b8; border-top: 1px solid #e2e8f0; }\n    </style>\n</head>\n<body>\n    <div class=\"email-container\">\n        <div class=\"header-banner\">\n            <h1>تحليل قرار: يتطلب تحسين ومراجعة</h1>\n            <p>تم رصد تقييم منخفض للقرار - نظام دعم القرار يوصي بإجراءات تصحيحية</p>\n        </div>\n        <div class=\"content-body\">\n            <div class=\"rating-badge-container\">\n                <span class=\"rating-badge\">درجة التقييم:{{ $('Google Sheets Trigger').item.json['Outcome Rating'] }}  / 10</span>\n            </div>\n            \n            <h2 class=\"section-title\">بيانات القرار المدخلة</h2>\n            <div class=\"data-card\">\n                <div class=\"data-row\">\n                    <span class=\"data-label\">رقم القرار (ID):</span>\n                    <span class=\"data-value\">{{ $('Google Sheets Trigger').item.json.ID }}</span>\n                </div>\n                <div class=\"data-row\">\n                    <span class=\"data-label\">اسم القرار:</span>\n                    <span class=\"data-value\">{{ $('Google Sheets Trigger').item.json['Descision Name'] }}</span>\n                </div>\n                <div class=\"data-row\">\n                    <span class=\"data-label\">النتيجة الفعلية:</span>\n                    <span class=\"data-value\">{{ $('Google Sheets Trigger').item.json['Actual Outcome'] }}</span>\n                </div>\n                <div class=\"data-row\">\n                    <span class=\"data-label\">عوامل غير متوقعة:</span>\n                    <span class=\"data-value\">{{ $('Google Sheets Trigger').item.json['Unexpected Factors'] }}</span>\n                </div>\n            </div>\n\n            <h2 class=\"section-title\">تحليل نظام دعم القرار (ADSS Agent)</h2>\n            <div class=\"ai-analysis-box\">\n                <div class=\"summary-text\">\n                    <strong>الملخص الذكي:</strong> {{ $json[\"output\"][\"decision_summary\"] }}\n                </div>\n                \n                <div class=\"list-title\" style=\"color: #5c1d1d;\">⚠ نقاط الضعف والمخاطر المكتشفة:</div>\n                <ul class=\"analysis-list\">\n                    {{ $json[\"output\"][\"weaknesses\"].map(item => `<li>${item}</li>`).join(\"\") }}\n                </ul>\n\n                <div class=\"list-title\" style=\"color: #2b6cb0;\">💡 الإجراءات والتوصيات المستقبلية:</div>\n                <ul class=\"analysis-list\" style=\"margin-bottom: 0;\">\n                    {{ $json[\"output\"][\"recommendations\"].map(item => `<li>${item}</li>`).join(\"\") }}\n                </ul>\n            </div>\n        </div>\n        <div class=\"footer\">\n            <p>هذا البريد تم توليده تلقائياً بواسطة نظام دعم القرار الخاص بـ Learnova</p>\n            <p>© 2026 Learnova ADSS Agent. جميع الحقوق محفوظة.</p>\n        </div>\n    </div>\n</body>\n</html>",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.2,
+      "position": [
+        240,
+        2032
+      ],
+      "id": "98861e06-d35c-4aac-bb7f-65f1ef270892",
+      "name": "Send a message",
+      "webhookId": "b5340098-a7fb-42d3-baaa-95a5b2059ecd",
+      "credentials": {
+        "gmailOAuth2": {
+          "id": "9NcBOjKo4wAbWWGE",
+          "name": "Gmail account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "sendTo": "moathhazeem661@gmail.com",
+        "subject": "تحسينات ",
+        "message": "=<!DOCTYPE html>\n<html dir=\"rtl\" lang=\"ar\">\n<head>\n    <meta charset=\"UTF-8\">\n    <title>تحليل قرار: نتيجة إيجابية ومثمرة</title>\n    <style>\n        @import url('https://fonts.googleapis.com/css2?family=Tajawal:wght@400;500;700&display=swap');\n        * { box-sizing: border-box; }\n        body {\n            font-family: 'Tajawal', 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;\n            background-color: #f7f9fc; color: #333333; line-height: 1.6; margin: 0; padding: 0;\n        }\n        .email-container {\n            max-width: 600px; margin: 30px auto; background: #ffffff; border-radius: 12px;\n            overflow: hidden; box-shadow: 0 4px 15px rgba(0,0,0,0.05); border: 1px solid #eef2f6;\n        }\n        .header-banner {\n            background-color: #1b4332; padding: 35px 30px; text-align: center; color: #ffffff;\n            border-bottom: 4px solid #2d6a4f;\n        }\n        .header-banner h1 { font-size: 22px; margin: 0 0 10px 0; font-weight: 700; }\n        .header-banner p { font-size: 13px; margin: 0; opacity: 0.9; }\n        .content-body { padding: 30px; }\n        .rating-badge-container { text-align: center; margin-bottom: 25px; }\n        .rating-badge {\n            display: inline-block; background-color: #d8f3dc; color: #1b4332;\n            padding: 8px 20px; border-radius: 30px; font-weight: 700; font-size: 15px;\n        }\n        .section-title {\n            font-size: 16px; font-weight: 700; color: #1b4332; margin-top: 0; margin-bottom: 12px;\n            border-right: 4px solid #2d6a4f; padding-right: 10px;\n        }\n        .data-card { background-color: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 20px; margin-bottom: 25px; }\n        .data-row { margin-bottom: 12px; font-size: 14px; }\n        .data-label { font-weight: 700; color: #4a5568; display: inline-block; width: 130px; }\n        .data-value { color: #1a202c; }\n        .ai-analysis-box {\n            background-color: #f4f9f4; border: 1px dashed #2d6a4f; border-radius: 8px; padding: 20px; margin-bottom: 25px;\n        }\n        .summary-text { font-size: 14px; color: #2d3748; margin-bottom: 15px; text-align: justify; }\n        .list-title { font-size: 14px; font-weight: 700; margin-bottom: 8px; }\n        .analysis-list { margin: 0 0 15px 0; padding-right: 20px; font-size: 13.5px; color: #4a5568; }\n        .analysis-list li { margin-bottom: 6px; }\n        .footer { background-color: #f1f5f9; padding: 20px; text-align: center; font-size: 12px; color: #94a3b8; border-top: 1px solid #e2e8f0; }\n    </style>\n</head>\n<body>\n    <div class=\"email-container\">\n        <div class=\"header-banner\">\n            <h1>تحليل قرار: نتيجة إيجابية ومثمرة</h1>\n            <p>تم مراجعة القرار بنجاح وتوثيقه في نظام دعم القرار (ADSS)</p>\n        </div>\n        <div class=\"content-body\">\n            <div class=\"rating-badge-container\">\n                <span class=\"rating-badge\">درجة التقييم: {{ $('Google Sheets Trigger').item.json['Outcome Rating'] }} / 10</span>\n            </div>\n            \n            <h2 class=\"section-title\">بيانات القرار المدخلة</h2>\n            <div class=\"data-card\">\n                <div class=\"data-row\">\n                    <span class=\"data-label\">رقم القرار (ID):</span>\n                    <span class=\"data-value\">{{ $('Google Sheets Trigger').item.json.ID }}</span>\n                </div>\n                <div class=\"data-row\">\n                    <span class=\"data-label\">اسم القرار:</span>\n                    <span class=\"data-value\">{{ $('Google Sheets Trigger').item.json['Descision Name'] }}</span>\n                </div>\n                <div class=\"data-row\">\n                    <span class=\"data-label\">النتيجة الفعلية:</span>\n                    <span class=\"data-value\">{{ $('Google Sheets Trigger').item.json['Actual Outcome'] }}</span>\n                </div>\n                <div class=\"data-row\">\n                    <span class=\"data-label\">عوامل غير متوقعة:</span>\n                    <span class=\"data-value\">{{ $('Google Sheets Trigger').item.json['Unexpected Factors'] }}</span>\n                </div>\n            </div>\n\n            <h2 class=\"section-title\">تحليل نظام دعم القرار (ADSS Agent)</h2>\n            <div class=\"ai-analysis-box\">\n                <div class=\"summary-text\">\n                    <strong>الملخص الذكي:</strong> {{ $json[\"output\"][\"decision_summary\"] }}\n                </div>\n                \n                <div class=\"list-title\" style=\"color: #1b4332;\">✓ نقاط القوة والنجاح:</div>\n                <ul class=\"analysis-list\">\n                    {{ $json[\"output\"][\"strengths\"].map(item => `<li>${item}</li>`).join(\"\") }}\n                </ul>\n\n                <div class=\"list-title\" style=\"color: #2b6cb0;\">💡 الإجراءات والتوصيات المستقبلية:</div>\n                <ul class=\"analysis-list\" style=\"margin-bottom: 0;\">\n                    {{ $json[\"output\"][\"recommendations\"].map(item => `<li>${item}</li>`).join(\"\") }}\n                </ul>\n            </div>\n        </div>\n        <div class=\"footer\">\n            <p>هذا البريد تم توليده تلقائياً بواسطة نظام دعم القرار الخاص بـ Learnova</p>\n            <p>© 2026 Learnova ADSS Agent. جميع الحقوق محفوظة.</p>\n        </div>\n    </div>\n</body>\n</html>",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.2,
+      "position": [
+        240,
+        2224
+      ],
+      "id": "33172af3-14b6-4587-8d50-76b30eb53d47",
+      "name": "Send a message1",
+      "webhookId": "b5340098-a7fb-42d3-baaa-95a5b2059ecd",
+      "credentials": {
+        "gmailOAuth2": {
+          "id": "9NcBOjKo4wAbWWGE",
+          "name": "Gmail account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "appendOrUpdate",
+        "documentId": {
+          "__rl": true,
+          "value": "1PxNA1-3gD350MTcTtqd5uViJ8SO0uX-WwnIigjleUZw",
+          "mode": "list",
+          "cachedResultName": "Automated Decision Support System",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1PxNA1-3gD350MTcTtqd5uViJ8SO0uX-WwnIigjleUZw/edit?usp=drivesdk"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": 1885190511,
+          "mode": "list",
+          "cachedResultName": "Improvment",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1PxNA1-3gD350MTcTtqd5uViJ8SO0uX-WwnIigjleUZw/edit#gid=1885190511"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "ID": "={{ $('Google Sheets Trigger').item.json.ID }}",
+            "Descision Name": "={{ $('Google Sheets Trigger').item.json[\"Descision Name\"] }}",
+            "Decision Summary": "={{ $('AI Agent').item.json.output.decision_summary }}",
+            "Strengths": "={{ $('AI Agent').item.json.output.strengths.map((item, index) => `${index + 1}. ${item}`).join(\"\\n\") }}",
+            "Weaknesses": "={{ $('AI Agent').item.json.output.weaknesses.map((item, index) => `${index + 1}. ${item}`).join(\"\\n\") }}",
+            "Recommendations": "={{ $('AI Agent').item.json.output.recommendations.map((item, index) => `${index + 1}. ${item}`).join(\"\\n\") }}"
+          },
+          "matchingColumns": [
+            "ID"
+          ],
+          "schema": [
+            {
+              "id": "ID",
+              "displayName": "ID",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "Descision Name",
+              "displayName": "Descision Name",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Decision Summary",
+              "displayName": "Decision Summary",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Strengths",
+              "displayName": "Strengths",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Weaknesses",
+              "displayName": "Weaknesses",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Recommendations",
+              "displayName": "Recommendations",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        448,
+        2032
+      ],
+      "id": "aaf2610c-4802-4f34-bf81-285d546722f4",
+      "name": "Append or update row in sheet1",
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "qPcYFvcEFGVnuJDH",
+          "name": "Google Sheets account 2"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "appendOrUpdate",
+        "documentId": {
+          "__rl": true,
+          "value": "1PxNA1-3gD350MTcTtqd5uViJ8SO0uX-WwnIigjleUZw",
+          "mode": "list",
+          "cachedResultName": "Automated Decision Support System",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1PxNA1-3gD350MTcTtqd5uViJ8SO0uX-WwnIigjleUZw/edit?usp=drivesdk"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": 1885190511,
+          "mode": "list",
+          "cachedResultName": "Improvment",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1PxNA1-3gD350MTcTtqd5uViJ8SO0uX-WwnIigjleUZw/edit#gid=1885190511"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "ID": "={{ $('Google Sheets Trigger').item.json.ID }}",
+            "Descision Name": "={{ $('Google Sheets Trigger').item.json[\"Descision Name\"] }}",
+            "Decision Summary": "={{ $('AI Agent').item.json.output.decision_summary }}",
+            "Strengths": "={{ $('AI Agent').item.json.output.strengths.map((item, index) => `${index + 1}. ${item}`).join(\"\\n\") }}",
+            "Weaknesses": "={{ $('AI Agent').item.json.output.weaknesses.map((item, index) => `${index + 1}. ${item}`).join(\"\\n\") }}",
+            "Recommendations": "={{ $('AI Agent').item.json.output.recommendations.map((item, index) => `${index + 1}. ${item}`).join(\"\\n\") }}"
+          },
+          "matchingColumns": [
+            "ID"
+          ],
+          "schema": [
+            {
+              "id": "ID",
+              "displayName": "ID",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "Descision Name",
+              "displayName": "Descision Name",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Decision Summary",
+              "displayName": "Decision Summary",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Strengths",
+              "displayName": "Strengths",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Weaknesses",
+              "displayName": "Weaknesses",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Recommendations",
+              "displayName": "Recommendations",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        448,
+        2224
+      ],
+      "id": "459b088f-8f0c-43de-a64d-95f8aea67e8f",
+      "name": "Append or update row in sheet2",
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "qPcYFvcEFGVnuJDH",
+          "name": "Google Sheets account 2"
+        }
+      }
     }
   ],
   "pinData": {},
   "connections": {
-    "Simple Memory": {
-      "ai_memory": [
-        [
-          {
-            "node": "AI Agent",
-            "type": "ai_memory",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "AI Agent": {
-      "main": [
-        [
-          {
-            "node": "Code in JavaScript",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Google Gemini Chat Model1": {
-      "ai_languageModel": [
-        [
-          {
-            "node": "AI Agent",
-            "type": "ai_languageModel",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Google Gemini Chat Model": {
-      "ai_languageModel": [
-        [
-          {
-            "node": "Structured Output Parser",
-            "type": "ai_languageModel",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Code in JavaScript": {
-      "main": [
-        [
-          {
-            "node": "If2",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Filter": {
-      "main": [
-        [
-          {
-            "node": "Metadata & Context",
-            "type": "main",
-            "index": 0
-          },
-          {
-            "node": "Quantitative Scoring",
-            "type": "main",
-            "index": 0
-          },
-          {
-            "node": "Qualitative analysis & Diagnosis",
-            "type": "main",
-            "index": 0
-          },
-          {
-            "node": "Execution & Recommendation",
-            "type": "main",
-            "index": 0
-          },
-          {
-            "node": "Execution & Recommendation1",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Structured Output Parser": {
-      "ai_outputParser": [
-        [
-          {
-            "node": "AI Agent",
-            "type": "ai_outputParser",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Metadata & Context": {
-      "main": [
-        [
-          {
-            "node": "Code in JavaScript1",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Quantitative Scoring": {
-      "main": [
-        [
-          {
-            "node": "Code in JavaScript1",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Qualitative analysis & Diagnosis": {
-      "main": [
-        [
-          {
-            "node": "Code in JavaScript1",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Execution & Recommendation": {
-      "main": [
-        [
-          {
-            "node": "Code in JavaScript1",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "If": {
-      "main": [
-        [
-          {
-            "node": "Switch",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "If1": {
-      "main": [
-        [
-          {
-            "node": "If",
-            "type": "main",
-            "index": 0
-          }
-        ],
-        [
-          {
-            "node": "Filter",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Switch": {
-      "main": [
-        [
-          {
-            "node": "Send a message",
-            "type": "main",
-            "index": 0
-          }
-        ],
-        [
-          {
-            "node": "Send a message1",
-            "type": "main",
-            "index": 0
-          }
-        ],
-        [
-          {
-            "node": "Send a message2",
-            "type": "main",
-            "index": 0
-          }
-        ],
-        [
-          {
-            "node": "Send a message3",
-            "type": "main",
-            "index": 0
-          }
-        ],
-        [
-          {
-            "node": "Send a message4",
-            "type": "main",
-            "index": 0
-          }
-        ],
-        [
-          {
-            "node": "Send a message7",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Send a message4": {
-      "main": [
-        []
-      ]
-    },
-    "If2": {
-      "main": [
-        [
-          {
-            "node": "If1",
-            "type": "main",
-            "index": 0
-          }
-        ],
-        [
-          {
-            "node": "If3",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "If3": {
-      "main": [
-        [
-          {
-            "node": "Get row(s) in sheet",
-            "type": "main",
-            "index": 0
-          },
-          {
-            "node": "Get row(s) in sheet1",
-            "type": "main",
-            "index": 0
-          },
-          {
-            "node": "Get row(s) in sheet2",
-            "type": "main",
-            "index": 0
-          },
-          {
-            "node": "Get row(s) in sheet3",
-            "type": "main",
-            "index": 0
-          },
-          {
-            "node": "Get row(s) in sheet4",
-            "type": "main",
-            "index": 0
-          }
-        ],
-        []
-      ]
-    },
-    "Get row(s) in sheet": {
-      "main": [
-        [
-          {
-            "node": "Delete rows or columns from sheet",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Get row(s) in sheet1": {
-      "main": [
-        [
-          {
-            "node": "Delete rows or columns from sheet1",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Get row(s) in sheet2": {
-      "main": [
-        [
-          {
-            "node": "Delete rows or columns from sheet2",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Get row(s) in sheet3": {
-      "main": [
-        [
-          {
-            "node": "Delete rows or columns from sheet3",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Delete rows or columns from sheet": {
-      "main": [
-        [
-          {
-            "node": "Code in JavaScript2",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Delete rows or columns from sheet1": {
-      "main": [
-        [
-          {
-            "node": "Code in JavaScript2",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Delete rows or columns from sheet2": {
-      "main": [
-        [
-          {
-            "node": "Code in JavaScript2",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Delete rows or columns from sheet3": {
-      "main": [
-        [
-          {
-            "node": "Code in JavaScript2",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Metadata & Context Get Row": {
-      "ai_tool": [
-        [
-          {
-            "node": "AI Agent",
-            "type": "ai_tool",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Execution & Recommendation Get row": {
-      "ai_tool": [
-        [
-          {
-            "node": "AI Agent",
-            "type": "ai_tool",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Quantitative scoring_Get_Row": {
-      "ai_tool": [
-        [
-          {
-            "node": "AI Agent",
-            "type": "ai_tool",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Qualitative analysis & Diagnosis_get_row": {
-      "ai_tool": [
-        [
-          {
-            "node": "AI Agent",
-            "type": "ai_tool",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Feedback user_get_row": {
-      "ai_tool": [
-        [
-          {
-            "node": "AI Agent",
-            "type": "ai_tool",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Execution & Recommendation1": {
-      "main": [
-        [
-          {
-            "node": "Code in JavaScript1",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Get row(s) in sheet4": {
-      "main": [
-        [
-          {
-            "node": "Delete rows or columns from sheet4",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Delete rows or columns from sheet4": {
-      "main": [
-        [
-          {
-            "node": "Code in JavaScript2",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Code in JavaScript1": {
-      "main": [
-        [
-          {
-            "node": "Send a message5",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Code in JavaScript2": {
-      "main": [
-        [
-          {
-            "node": "Send a message6",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "AI Agent1": {
-      "main": [
-        [
-          {
-            "node": "Code in JavaScript3",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Simple Memory1": {
-      "ai_memory": [
-        [
-          {
-            "node": "AI Agent1",
-            "type": "ai_memory",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Google Gemini Chat Model2": {
-      "ai_languageModel": [
-        [
-          {
-            "node": "AI Agent1",
-            "type": "ai_languageModel",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Metadata & Context Get Row1": {
-      "ai_tool": [
-        [
-          {
-            "node": "AI Agent1",
-            "type": "ai_tool",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Execution & Recommendation Get row1": {
-      "ai_tool": [
-        [
-          {
-            "node": "AI Agent1",
-            "type": "ai_tool",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Quantitative scoring_Get_Row1": {
-      "ai_tool": [
-        [
-          {
-            "node": "AI Agent1",
-            "type": "ai_tool",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Qualitative analysis & Diagnosis_get_row1": {
-      "ai_tool": [
-        [
-          {
-            "node": "AI Agent1",
-            "type": "ai_tool",
-            "index": 0
-          }
-        ]
-      ]
-    },
     "When chat message received": {
       "main": [
         [
@@ -3182,12 +1206,6 @@
         ]
       ]
     },
-    "If4": {
-      "main": [
-        [],
-        []
-      ]
-    },
     "Append or update row in sheet": {
       "main": [
         [
@@ -3267,6 +1285,112 @@
           }
         ]
       ]
+    },
+    "Google Sheets Trigger": {
+      "main": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Google Gemini Chat Model": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Metadata & Context Get Row": {
+      "ai_tool": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Metadata & Context Get Row1": {
+      "ai_tool": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "AI Agent": {
+      "main": [
+        [
+          {
+            "node": "Switch",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Structured Output Parser": {
+      "ai_outputParser": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_outputParser",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Switch": {
+      "main": [
+        [
+          {
+            "node": "Send a message",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Send a message1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Send a message": {
+      "main": [
+        [
+          {
+            "node": "Append or update row in sheet1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Send a message1": {
+      "main": [
+        [
+          {
+            "node": "Append or update row in sheet2",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     }
   },
   "active": false,
@@ -3274,7 +1398,7 @@
     "executionOrder": "v1",
     "binaryMode": "separate"
   },
-  "versionId": "55772d03-e9f3-4a83-b989-84536c3bd355",
+  "versionId": "1469f236-21a9-4f52-8434-8f83c4c61e9e",
   "meta": {
     "templateCredsSetupCompleted": true,
     "instanceId": "312b8e1c27ba1ae94b15ee40f5b475cef18128657bfd8917a13927efa9db76b9"
