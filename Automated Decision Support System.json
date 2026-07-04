@@ -679,31 +679,14 @@
     },
     {
       "parameters": {
-        "promptType": "define",
-        "text": "=يرجى تحليل البيانات التالية الخاصة بالقرار المأخوذ:\n- رقم القرار (ID): {{ typeof $json[\"ID\"] === 'string' && $json[\"ID\"].includes('/') ? Math.round((new Date($json[\"ID\"]) - new Date('1899-12-30')) / (1000 * 60 * 60 * 24)) : $json[\"ID\"] }}\n- اسم القرار (Decision Name): {{ $json['Descision Name'] }}\n- النتيجة الفعلية (Actual Outcome): {{ $json[\"Actual Outcome\"] }}\n- تقييم النتيجة (Outcome Rating): {{ typeof $json[\"Outcome Rating\"] === 'string' && $json[\"Outcome Rating\"].includes('/') ? Math.round((new Date($json[\"Outcome Rating\"]) - new Date('1899-12-30')) / (1000 * 60 * 60 * 24)) : $json[\"Outcome Rating\"] }}\n- عوامل غير متوقعة (Unexpected Factors): {{ $json[\"Unexpected Factors\"] }}\n- تاريخ المراجعة (Date of Reflection): {{ $json[\"Date of Reflection\"] }}\n\nبناءً على الـ System Message، قم بتقديم التحليل المطلوب.",
-        "hasOutputParser": true,
-        "options": {
-          "systemMessage": "You are an expert in analyzing administrative and personal decisions. You have data on a decision that was previously made (the original decision) and data on the actual result after implementation. Your task is to compare what was expected with what actually happened, classify the \"Actual Outcome\" as either good or bad based on the descriptive text and the \"Outcome Rating\", and extract strengths or weaknesses accordingly.\n\nCRITICAL INSTRUCTIONS FOR CLASSIFICATION & ANALYSIS:\n1. Classification Rule: Evaluate the combination of \"Actual Outcome\" text and \"Outcome Rating\". If the rating is 5 or above and the outcome text is generally positive, classify the context as a \"Good Outcome\". If the rating is below 5 or the outcome text reflects failure/struggle, classify it as a \"Bad Outcome\".\n2. Dynamic JSON Output Selection:\n   - If the outcome is classified as GOOD: Fill the \"strengths\" array with key success factors, and LEAVE the \"weaknesses\" array completely EMPTY []. Do not invent weaknesses.\n   - If the outcome is classified as BAD: Fill the \"weaknesses\" array with failure points and bottlenecks, and LEAVE the \"strengths\" array completely EMPTY []. Do not invent strengths.\n3. Recommendations: In both cases, provide actionable \"recommendations\" for future decision-making or corrective actions.\n"
-        }
-      },
-      "type": "@n8n/n8n-nodes-langchain.agent",
-      "typeVersion": 3.1,
-      "position": [
-        -320,
-        2368
-      ],
-      "id": "0d03dac2-cdd9-4d70-bdf0-a5b51210bd84",
-      "name": "AI Agent"
-    },
-    {
-      "parameters": {
+        "modelName": "models/gemini-2.5-flash",
         "options": {}
       },
       "type": "@n8n/n8n-nodes-langchain.lmChatGoogleGemini",
       "typeVersion": 1.1,
       "position": [
-        -320,
-        2576
+        -336,
+        2544
       ],
       "id": "37e0a238-1560-4740-8e41-ae666e7fce9c",
       "name": "Google Gemini Chat Model",
@@ -711,72 +694,6 @@
         "googlePalmApi": {
           "id": "5bQnUFfdkzbJs3Ln",
           "name": "Google Gemini(PaLM) Api account 2"
-        }
-      }
-    },
-    {
-      "parameters": {
-        "documentId": {
-          "__rl": true,
-          "value": "1PxNA1-3gD350MTcTtqd5uViJ8SO0uX-WwnIigjleUZw",
-          "mode": "list",
-          "cachedResultName": "Automated Decision Support System",
-          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1PxNA1-3gD350MTcTtqd5uViJ8SO0uX-WwnIigjleUZw/edit?usp=drivesdk"
-        },
-        "sheetName": {
-          "__rl": true,
-          "value": 1376153753,
-          "mode": "list",
-          "cachedResultName": "Review",
-          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1PxNA1-3gD350MTcTtqd5uViJ8SO0uX-WwnIigjleUZw/edit#gid=1376153753"
-        },
-        "options": {}
-      },
-      "type": "n8n-nodes-base.googleSheetsTool",
-      "typeVersion": 4.7,
-      "position": [
-        -128,
-        2560
-      ],
-      "id": "2b260c7f-e659-45d8-88df-e797656f273a",
-      "name": "Metadata & Context Get Row",
-      "credentials": {
-        "googleSheetsOAuth2Api": {
-          "id": "qPcYFvcEFGVnuJDH",
-          "name": "Google Sheets account 2"
-        }
-      }
-    },
-    {
-      "parameters": {
-        "documentId": {
-          "__rl": true,
-          "value": "1PxNA1-3gD350MTcTtqd5uViJ8SO0uX-WwnIigjleUZw",
-          "mode": "list",
-          "cachedResultName": "Automated Decision Support System",
-          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1PxNA1-3gD350MTcTtqd5uViJ8SO0uX-WwnIigjleUZw/edit?usp=drivesdk"
-        },
-        "sheetName": {
-          "__rl": true,
-          "value": 1183008931,
-          "mode": "list",
-          "cachedResultName": "Descisions",
-          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1PxNA1-3gD350MTcTtqd5uViJ8SO0uX-WwnIigjleUZw/edit#gid=1183008931"
-        },
-        "options": {}
-      },
-      "type": "n8n-nodes-base.googleSheetsTool",
-      "typeVersion": 4.7,
-      "position": [
-        -224,
-        2560
-      ],
-      "id": "98b942f6-4954-4e15-94ee-ca7a4353a37f",
-      "name": "Metadata & Context Get Row1",
-      "credentials": {
-        "googleSheetsOAuth2Api": {
-          "id": "qPcYFvcEFGVnuJDH",
-          "name": "Google Sheets account 2"
         }
       }
     },
@@ -796,11 +713,10 @@
                   {
                     "id": "7284ff68-cba6-44f5-930d-a221f6f3f4e0",
                     "leftValue": "={{ $('Google Sheets Trigger').item.json[\"Outcome Rating\"] }}",
-                    "rightValue": "10",
+                    "rightValue": 10,
                     "operator": {
-                      "type": "string",
-                      "operation": "equals",
-                      "name": "filter.operator.equals"
+                      "type": "number",
+                      "operation": "equals"
                     }
                   }
                 ],
@@ -819,11 +735,10 @@
                   {
                     "id": "679ed2c4-856d-4e2d-b60f-1022824832bc",
                     "leftValue": "={{ $('Google Sheets Trigger').item.json[\"Outcome Rating\"] }}",
-                    "rightValue": "0",
+                    "rightValue": 0,
                     "operator": {
-                      "type": "string",
-                      "operation": "equals",
-                      "name": "filter.operator.equals"
+                      "type": "number",
+                      "operation": "equals"
                     }
                   }
                 ],
@@ -844,7 +759,7 @@
                     "rightValue": 5,
                     "operator": {
                       "type": "number",
-                      "operation": "lt"
+                      "operation": "gte"
                     },
                     "id": "060a5c3a-90d1-4d74-b4e2-3b6af00cd44a"
                   }
@@ -867,7 +782,7 @@
                     "rightValue": 5,
                     "operator": {
                       "type": "number",
-                      "operation": "gte"
+                      "operation": "lt"
                     }
                   }
                 ],
@@ -882,7 +797,7 @@
       "typeVersion": 3.4,
       "position": [
         32,
-        2368
+        2336
       ],
       "id": "cfa8db53-404f-4d4e-9b8e-77a7444ab1a8",
       "name": "Switch"
@@ -890,13 +805,13 @@
     {
       "parameters": {
         "schemaType": "manual",
-        "inputSchema": "{\n  \"type\": \"object\",\n  \"properties\": {\n    \"decision_summary\": {\n      \"type\": \"string\"\n    },\n    \"strengths\": {\n      \"type\": \"array\",\n      \"items\": {\n        \"type\": \"string\"\n      }\n    },\n    \"weaknesses\": {\n      \"type\": \"array\",\n      \"items\": {\n        \"type\": \"string\"\n      }\n    },\n    \"recommendations\": {\n      \"type\": \"array\",\n      \"items\": {\n        \"type\": \"string\"\n      }\n    }\n  },\n  \"required\": [\"decision_summary\", \"strengths\", \"weaknesses\", \"recommendations\"]\n}"
+        "inputSchema": "{\n  \"type\": \"object\",\n  \"properties\": {\n    \"decision_summary\": {\n      \"type\": \"string\",\n      \"description\": \"A brief summary of the decision and its actual outcome.\"\n    },\n    \"outcome_rating\": {\n      \"type\": \"number\",\n      \"description\": \"The extracted or evaluated numerical rating of the outcome.\"\n    },\n    \"outcome_category\": {\n      \"type\": \"string\",\n      \"enum\": [\n        \"10 - Outstanding Success\",\n        \"5 to <10 - Positive/Acceptable Outcome\",\n        \">0 to <5 - Marginal/Struggling Outcome\",\n        \"0 - Absolute Failure\"\n      ],\n      \"description\": \"The exact category matching the classification rules specified in the prompt.\"\n    },\n    \"strengths\": {\n      \"type\": \"array\",\n      \"items\": {\n        \"type\": \"string\"\n      },\n      \"description\": \"List of key success factors. Must be empty if outcome category is below 5.\"\n    },\n    \"weaknesses\": {\n      \"type\": \"array\",\n      \"items\": {\n        \"type\": \"string\"\n      },\n      \"description\": \"List of failure points and bottlenecks. Must be empty if outcome category is 5 or above.\"\n    },\n    \"recommendations\": {\n      \"type\": \"array\",\n      \"items\": {\n        \"type\": \"string\"\n      },\n      \"description\": \"Actionable recommendations for future decision-making or corrective actions.\"\n    }\n  },\n  \"required\": [\n    \"decision_summary\",\n    \"outcome_rating\",\n    \"outcome_category\",\n    \"strengths\",\n    \"weaknesses\",\n    \"recommendations\"\n  ]\n}"
       },
       "type": "@n8n/n8n-nodes-langchain.outputParserStructured",
       "typeVersion": 1.3,
       "position": [
-        0,
-        2576
+        -192,
+        2544
       ],
       "id": "e553b442-651f-45ae-883b-75f1a03728dd",
       "name": "Structured Output Parser"
@@ -904,15 +819,17 @@
     {
       "parameters": {
         "sendTo": "moathhazeem661@gmail.com",
-        "subject": " {{ $('Google Sheets Trigger').item.json['Descision Name'] }} مشاكل ",
-        "message": "=<!DOCTYPE html>\n<html dir=\"rtl\" lang=\"ar\">\n<head>\n    <meta charset=\"UTF-8\">\n    <title>تحليل قرار: يتطلب تحسين ومراجعة</title>\n    <style>\n        @import url('https://fonts.googleapis.com/css2?family=Tajawal:wght@400;500;700&display=swap');\n        * { box-sizing: border-box; }\n        body {\n            font-family: 'Tajawal', 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;\n            background-color: #f7f9fc; color: #333333; line-height: 1.6; margin: 0; padding: 0;\n        }\n        .email-container {\n            max-width: 600px; margin: 30px auto; background: #ffffff; border-radius: 12px;\n            overflow: hidden; box-shadow: 0 4px 15px rgba(0,0,0,0.05); border: 1px solid #eef2f6;\n        }\n        .header-banner {\n            background-color: #5c1d1d; padding: 35px 30px; text-align: center; color: #ffffff;\n            border-bottom: 4px solid #9b2226;\n        }\n        .header-banner h1 { font-size: 22px; margin: 0 0 10px 0; font-weight: 700; }\n        .header-banner p { font-size: 13px; margin: 0; opacity: 0.9; }\n        .content-body { padding: 30px; }\n        .rating-badge-container { text-align: center; margin-bottom: 25px; }\n        .rating-badge {\n            display: inline-block; background-color: #fbc4b6; color: #5c1d1d;\n            padding: 8px 20px; border-radius: 30px; font-weight: 700; font-size: 15px;\n        }\n        .section-title {\n            font-size: 16px; font-weight: 700; color: #5c1d1d; margin-top: 0; margin-bottom: 12px;\n            border-right: 4px solid #9b2226; padding-right: 10px;\n        }\n        .data-card { background-color: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 20px; margin-bottom: 25px; }\n        .data-row { margin-bottom: 12px; font-size: 14px; }\n        .data-label { font-weight: 700; color: #4a5568; display: inline-block; width: 130px; }\n        .data-value { color: #1a202c; }\n        .ai-analysis-box {\n            background-color: #fff5f5; border: 1px dashed #9b2226; border-radius: 8px; padding: 20px; margin-bottom: 25px;\n        }\n        .summary-text { font-size: 14px; color: #2d3748; margin-bottom: 15px; text-align: justify; }\n        .list-title { font-size: 14px; font-weight: 700; margin-bottom: 8px; }\n        .analysis-list { margin: 0 0 15px 0; padding-right: 20px; font-size: 13.5px; color: #4a5568; }\n        .analysis-list li { margin-bottom: 6px; }\n        .footer { background-color: #f1f5f9; padding: 20px; text-align: center; font-size: 12px; color: #94a3b8; border-top: 1px solid #e2e8f0; }\n    </style>\n</head>\n<body>\n    <div class=\"email-container\">\n        <div class=\"header-banner\">\n            <h1>تحليل قرار: يتطلب تحسين ومراجعة</h1>\n            <p>تم رصد تقييم منخفض للقرار - نظام دعم القرار يوصي بإجراءات تصحيحية</p>\n        </div>\n        <div class=\"content-body\">\n            <div class=\"rating-badge-container\">\n                <span class=\"rating-badge\">درجة التقييم:{{ $('Google Sheets Trigger').item.json['Outcome Rating'] }}  / 10</span>\n            </div>\n            \n            <h2 class=\"section-title\">بيانات القرار المدخلة</h2>\n            <div class=\"data-card\">\n                <div class=\"data-row\">\n                    <span class=\"data-label\">رقم القرار (ID):</span>\n                    <span class=\"data-value\">{{ $('Google Sheets Trigger').item.json.ID }}</span>\n                </div>\n                <div class=\"data-row\">\n                    <span class=\"data-label\">اسم القرار:</span>\n                    <span class=\"data-value\">{{ $('Google Sheets Trigger').item.json['Descision Name'] }}</span>\n                </div>\n                <div class=\"data-row\">\n                    <span class=\"data-label\">النتيجة الفعلية:</span>\n                    <span class=\"data-value\">{{ $('Google Sheets Trigger').item.json['Actual Outcome'] }}</span>\n                </div>\n                <div class=\"data-row\">\n                    <span class=\"data-label\">عوامل غير متوقعة:</span>\n                    <span class=\"data-value\">{{ $('Google Sheets Trigger').item.json['Unexpected Factors'] }}</span>\n                </div>\n            </div>\n\n            <h2 class=\"section-title\">تحليل نظام دعم القرار (ADSS Agent)</h2>\n            <div class=\"ai-analysis-box\">\n                <div class=\"summary-text\">\n                    <strong>الملخص الذكي:</strong> {{ $json[\"output\"][\"decision_summary\"] }}\n                </div>\n                \n                <div class=\"list-title\" style=\"color: #5c1d1d;\">⚠ نقاط الضعف والمخاطر المكتشفة:</div>\n                <ul class=\"analysis-list\">\n                    {{ $json[\"output\"][\"weaknesses\"].map(item => `<li>${item}</li>`).join(\"\") }}\n                </ul>\n\n                <div class=\"list-title\" style=\"color: #2b6cb0;\">💡 الإجراءات والتوصيات المستقبلية:</div>\n                <ul class=\"analysis-list\" style=\"margin-bottom: 0;\">\n                    {{ $json[\"output\"][\"recommendations\"].map(item => `<li>${item}</li>`).join(\"\") }}\n                </ul>\n            </div>\n        </div>\n        <div class=\"footer\">\n            <p>هذا البريد تم توليده تلقائياً بواسطة نظام دعم القرار الخاص بـ Learnova</p>\n            <p>© 2026 Learnova ADSS Agent. جميع الحقوق محفوظة.</p>\n        </div>\n    </div>\n</body>\n</html>",
-        "options": {}
+        "subject": "={{ $('Google Sheets Trigger').item.json[\"Descision Name\"] }} ",
+        "message": "=<!DOCTYPE html>\n<html>\n<head>\n  <meta charset=\"utf-8\">\n  <meta name=\"viewport\" content=\"width=device-width, initial-scale=1.0\">\n  <title>Positive Outcome</title>\n  <style>\n    @media only screen and (max-width: 600px) {\n      .container { width: 100% !important; border-radius: 0 !important; }\n      .header { padding: 30px 20px !important; }\n      .content { padding: 20px !important; }\n      h1 { font-size: 24px !important; }\n    }\n  </style>\n</head>\n<body style=\"margin: 0; padding: 0; background-color: #f4f6f8; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; direction: rtl; text-align: right; -webkit-text-size-adjust: 100%; -ms-text-size-adjust: 100%;\">\n  <table width=\"100%\" border=\"0\" cellspacing=\"0\" cellpadding=\"0\" style=\"background-color: #f4f6f8; padding: 20px 0;\">\n    <tr>\n      <td align=\"center\">\n        <table class=\"container\" width=\"600\" border=\"0\" cellspacing=\"0\" cellpadding=\"0\" style=\"background-color: #ffffff; border-radius: 12px; overflow: hidden; box-shadow: 0 4px 15px rgba(0,0,0,0.05); width: 100%; max-width: 600px;\">\n          <!-- Header -->\n          <tr>\n            <td class=\"header\" style=\"background: linear-gradient(135deg, #3b82f6, #1d4ed8); padding: 40px 30px; text-align: center;\">\n              <h1 style=\"color: #ffffff; margin: 0; font-size: 28px; font-weight: 700;\">نتيجة إيجابية ومثمرة 👍</h1>\n              <p style=\"color: #dbeafe; margin: 10px 0 0 0; font-size: 16px;\">تقييم القرار النهائي: {{ $json.output.outcome_rating }}/10</p>\n            </td>\n          </tr>\n          <!-- Content -->\n          <tr>\n            <td class=\"content\" style=\"padding: 30px 40px;\">\n              <p style=\"font-size: 16px; color: #374151; line-height: 1.6; margin: 0 0 20px 0;\">\n                مرحباً معاذ، يوضح التقرير أن القرار المطبق قد حقق نتائج جيدة ومقبولة بشكل عام مع وجود مساحة بسيطة للتطوير المستقبلي.\n              </p>\n              \n              <div style=\"background-color: #eff6ff; border-right: 4px solid #3b82f6; padding: 15px; margin-bottom: 25px; border-radius: 4px;\">\n                <h3 style=\"margin: 0 0 5px 0; color: #1e40af; font-size: 15px;\">ملخص مسار القرار:</h3>\n                <p style=\"margin: 0; color: #1e3a8a; font-size: 14px;\">{{ $json.output.decision_summary }}</p>\n              </div>\n\n              <h3 style=\"color: #111827; font-size: 16px; margin: 0 0 10px 0; border-bottom: 2px solid #e5e7eb; padding-bottom: 5px;\">✅ ركائز النجاح المستخرجة:</h3>\n              <ul style=\"margin: 0 0 25px 0; padding-right: 20px; color: #4b5563; font-size: 14px; line-height: 1.8;\">\n                <li>{{ $json.output.strengths.join('</li><li>') }}</li>\n              </ul>\n\n              <h3 style=\"color: #111827; font-size: 16px; margin: 0 0 10px 0; border-bottom: 2px solid #e5e7eb; padding-bottom: 5px;\">⚙️ توصيات للتحسين وسد الثغرات المتبقية:</h3>\n              <ul style=\"margin: 0 0 10px 0; padding-right: 20px; color: #4b5563; font-size: 14px; line-height: 1.8;\">\n                <li>{{ $json.output.recommendations.join('</li><li>') }}</li>\n              </ul>\n            </td>\n          </tr>\n          <!-- Footer -->\n          <tr>\n            <td style=\"background-color: #f9fafb; padding: 20px; text-align: center; border-top: 1px solid #e5e7eb;\">\n              <p style=\"margin: 0; font-size: 12px; color: #9ca3af;\">تم توليد هذا التقرير تلقائياً بواسطة نظام ADSS Automation</p>\n            </td>\n          </tr>\n        </table>\n      </td>\n    </tr>\n  </table>\n</body>\n</html>",
+        "options": {
+          "appendAttribution": false
+        }
       },
       "type": "n8n-nodes-base.gmail",
       "typeVersion": 2.2,
       "position": [
-        400,
-        2608
+        384,
+        2464
       ],
       "id": "98861e06-d35c-4aac-bb7f-65f1ef270892",
       "name": "Send a message",
@@ -927,15 +844,17 @@
     {
       "parameters": {
         "sendTo": "moathhazeem661@gmail.com",
-        "subject": "{{ $('Google Sheets Trigger').item.json['Descision Name'] }} تحسينات    ",
-        "message": "=<!DOCTYPE html>\n<html dir=\"rtl\" lang=\"ar\">\n<head>\n    <meta charset=\"UTF-8\">\n    <title>تحليل قرار: نتيجة إيجابية ومثمرة</title>\n    <style>\n        @import url('https://fonts.googleapis.com/css2?family=Tajawal:wght@400;500;700&display=swap');\n        * { box-sizing: border-box; }\n        body {\n            font-family: 'Tajawal', 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;\n            background-color: #f7f9fc; color: #333333; line-height: 1.6; margin: 0; padding: 0;\n        }\n        .email-container {\n            max-width: 600px; margin: 30px auto; background: #ffffff; border-radius: 12px;\n            overflow: hidden; box-shadow: 0 4px 15px rgba(0,0,0,0.05); border: 1px solid #eef2f6;\n        }\n        .header-banner {\n            background-color: #1b4332; padding: 35px 30px; text-align: center; color: #ffffff;\n            border-bottom: 4px solid #2d6a4f;\n        }\n        .header-banner h1 { font-size: 22px; margin: 0 0 10px 0; font-weight: 700; }\n        .header-banner p { font-size: 13px; margin: 0; opacity: 0.9; }\n        .content-body { padding: 30px; }\n        .rating-badge-container { text-align: center; margin-bottom: 25px; }\n        .rating-badge {\n            display: inline-block; background-color: #d8f3dc; color: #1b4332;\n            padding: 8px 20px; border-radius: 30px; font-weight: 700; font-size: 15px;\n        }\n        .section-title {\n            font-size: 16px; font-weight: 700; color: #1b4332; margin-top: 0; margin-bottom: 12px;\n            border-right: 4px solid #2d6a4f; padding-right: 10px;\n        }\n        .data-card { background-color: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 20px; margin-bottom: 25px; }\n        .data-row { margin-bottom: 12px; font-size: 14px; }\n        .data-label { font-weight: 700; color: #4a5568; display: inline-block; width: 130px; }\n        .data-value { color: #1a202c; }\n        .ai-analysis-box {\n            background-color: #f4f9f4; border: 1px dashed #2d6a4f; border-radius: 8px; padding: 20px; margin-bottom: 25px;\n        }\n        .summary-text { font-size: 14px; color: #2d3748; margin-bottom: 15px; text-align: justify; }\n        .list-title { font-size: 14px; font-weight: 700; margin-bottom: 8px; }\n        .analysis-list { margin: 0 0 15px 0; padding-right: 20px; font-size: 13.5px; color: #4a5568; }\n        .analysis-list li { margin-bottom: 6px; }\n        .footer { background-color: #f1f5f9; padding: 20px; text-align: center; font-size: 12px; color: #94a3b8; border-top: 1px solid #e2e8f0; }\n    </style>\n</head>\n<body>\n    <div class=\"email-container\">\n        <div class=\"header-banner\">\n            <h1>تحليل قرار: نتيجة إيجابية ومثمرة</h1>\n            <p>تم مراجعة القرار بنجاح وتوثيقه في نظام دعم القرار (ADSS)</p>\n        </div>\n        <div class=\"content-body\">\n            <div class=\"rating-badge-container\">\n                <span class=\"rating-badge\">درجة التقييم: {{ $('Google Sheets Trigger').item.json['Outcome Rating'] }} / 10</span>\n            </div>\n            \n            <h2 class=\"section-title\">بيانات القرار المدخلة</h2>\n            <div class=\"data-card\">\n                <div class=\"data-row\">\n                    <span class=\"data-label\">رقم القرار (ID):</span>\n                    <span class=\"data-value\">{{ $('Google Sheets Trigger').item.json.ID }}</span>\n                </div>\n                <div class=\"data-row\">\n                    <span class=\"data-label\">اسم القرار:</span>\n                    <span class=\"data-value\">{{ $('Google Sheets Trigger').item.json['Descision Name'] }}</span>\n                </div>\n                <div class=\"data-row\">\n                    <span class=\"data-label\">النتيجة الفعلية:</span>\n                    <span class=\"data-value\">{{ $('Google Sheets Trigger').item.json['Actual Outcome'] }}</span>\n                </div>\n                <div class=\"data-row\">\n                    <span class=\"data-label\">عوامل غير متوقعة:</span>\n                    <span class=\"data-value\">{{ $('Google Sheets Trigger').item.json['Unexpected Factors'] }}</span>\n                </div>\n            </div>\n\n            <h2 class=\"section-title\">تحليل نظام دعم القرار (ADSS Agent)</h2>\n            <div class=\"ai-analysis-box\">\n                <div class=\"summary-text\">\n                    <strong>الملخص الذكي:</strong> {{ $json[\"output\"][\"decision_summary\"] }}\n                </div>\n                \n                <div class=\"list-title\" style=\"color: #1b4332;\">✓ نقاط القوة والنجاح:</div>\n                <ul class=\"analysis-list\">\n                    {{ $json[\"output\"][\"strengths\"].map(item => `<li>${item}</li>`).join(\"\") }}\n                </ul>\n\n                <div class=\"list-title\" style=\"color: #2b6cb0;\">💡 الإجراءات والتوصيات المستقبلية:</div>\n                <ul class=\"analysis-list\" style=\"margin-bottom: 0;\">\n                    {{ $json[\"output\"][\"recommendations\"].map(item => `<li>${item}</li>`).join(\"\") }}\n                </ul>\n            </div>\n        </div>\n        <div class=\"footer\">\n            <p>هذا البريد تم توليده تلقائياً بواسطة نظام دعم القرار الخاص بـ Learnova</p>\n            <p>© 2026 Learnova ADSS Agent. جميع الحقوق محفوظة.</p>\n        </div>\n    </div>\n</body>\n</html>",
-        "options": {}
+        "subject": "{{ $('Google Sheets Trigger').item.json[\"Descision Name\"] }}",
+        "message": "=<!DOCTYPE html>\n<html>\n<head>\n  <meta charset=\"utf-8\">\n  <meta name=\"viewport\" content=\"width=device-width, initial-scale=1.0\">\n  <title>Struggling Outcome</title>\n  <style>\n    @media only screen and (max-width: 600px) {\n      .container { width: 100% !important; border-radius: 0 !important; }\n      .header { padding: 30px 20px !important; }\n      .content { padding: 20px !important; }\n      h1 { font-size: 24px !important; }\n    }\n  </style>\n</head>\n<body style=\"margin: 0; padding: 0; background-color: #f4f6f8; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; direction: rtl; text-align: right; -webkit-text-size-adjust: 100%; -ms-text-size-adjust: 100%;\">\n  <table width=\"100%\" border=\"0\" cellspacing=\"0\" cellpadding=\"0\" style=\"background-color: #f4f6f8; padding: 20px 0;\">\n    <tr>\n      <td align=\"center\">\n        <table class=\"container\" width=\"600\" border=\"0\" cellspacing=\"0\" cellpadding=\"0\" style=\"background-color: #ffffff; border-radius: 12px; overflow: hidden; box-shadow: 0 4px 15px rgba(0,0,0,0.05); width: 100%; max-width: 600px;\">\n          <!-- Header -->\n          <tr>\n            <td class=\"header\" style=\"background: linear-gradient(135deg, #f97316, #ea580c); padding: 40px 30px; text-align: center;\">\n              <h1 style=\"color: #ffffff; margin: 0; font-size: 28px; font-weight: 700;\">تحليل تعثر القرار ⚠️</h1>\n              <p style=\"color: #ffedd5; margin: 10px 0 0 0; font-size: 16px;\">تقييم القرار النهائي: {{ $json.output.outcome_rating }}/10</p>\n            </td>\n          </tr>\n          <!-- Content -->\n          <tr>\n            <td class=\"content\" style=\"padding: 30px 40px;\">\n              <p style=\"font-size: 16px; color: #374151; line-height: 1.6; margin: 0 0 20px 0;\">\n                مرحباً معاذ، يظهر تحليل البيانات أن هناك معوقات واضحة واجهت تنفيذ هذا القرار وتسببت في انخفاض نسبة المخرجات المستهدفة عن المتوقع.\n              </p>\n              \n              <div style=\"background-color: #fff7ed; border-right: 4px solid #f97316; padding: 15px; margin-bottom: 25px; border-radius: 4px;\">\n                <h3 style=\"margin: 0 0 5px 0; color: #9a3412; font-size: 15px;\">الواقع الفعلي للقرار:</h3>\n                <p style=\"margin: 0; color: #7c2d12; font-size: 14px;\">{{ $json.output.decision_summary }}</p>\n              </div>\n\n              <h3 style=\"color: #111827; font-size: 16px; margin: 0 0 10px 0; border-bottom: 2px solid #e5e7eb; padding-bottom: 5px;\">❌ نقاط الضعف والاختناقات المرصودة:</h3>\n              <ul style=\"margin: 0 0 25px 0; padding-right: 20px; color: #b45309; font-size: 14px; line-height: 1.8;\">\n                <li>{{ $json.output.weaknesses.join('</li><li>') }}</li>\n              </ul>\n\n              <h3 style=\"color: #111827; font-size: 16px; margin: 0 0 10px 0; border-bottom: 2px solid #e5e7eb; padding-bottom: 5px;\">🛠️ إجراءات تصحيحية عاجلة للتعافي:</h3>\n              <ul style=\"margin: 0 0 10px 0; padding-right: 20px; color: #4b5563; font-size: 14px; line-height: 1.8;\">\n                <li>{{ $json.output.recommendations.join('</li><li>') }}</li>\n              </ul>\n            </td>\n          </tr>\n          <!-- Footer -->\n          <tr>\n            <td style=\"background-color: #f9fafb; padding: 20px; text-align: center; border-top: 1px solid #e5e7eb;\">\n              <p style=\"margin: 0; font-size: 12px; color: #9ca3af;\">تم توليد هذا التقرير تلقائياً بواسطة نظام ADSS Automation</p>\n            </td>\n          </tr>\n        </table>\n      </td>\n    </tr>\n  </table>\n</body>\n</html>",
+        "options": {
+          "appendAttribution": false
+        }
       },
       "type": "n8n-nodes-base.gmail",
       "typeVersion": 2.2,
       "position": [
-        400,
-        2800
+        384,
+        2656
       ],
       "id": "33172af3-14b6-4587-8d50-76b30eb53d47",
       "name": "Send a message1",
@@ -969,10 +888,10 @@
           "value": {
             "ID": "={{ $('Google Sheets Trigger').item.json.ID }}",
             "Descision Name": "={{ $('Google Sheets Trigger').item.json[\"Descision Name\"] }}",
-            "Decision Summary": "={{ $('AI Agent').item.json.output.decision_summary }}",
-            "Strengths": "={{ $('AI Agent').item.json.output.strengths.map((item, index) => `${index + 1}. ${item}`).join(\"\\n\") }}",
-            "Weaknesses": "={{ $('AI Agent').item.json.output.weaknesses.map((item, index) => `${index + 1}. ${item}`).join(\"\\n\") }}",
-            "Recommendations": "={{ $('AI Agent').item.json.output.recommendations.map((item, index) => `${index + 1}. ${item}`).join(\"\\n\") }}"
+            "Decision Summary": "={{ $('Basic LLM Chain').item.json.output.decision_summary }}",
+            "Strengths": "={{ $('Basic LLM Chain').item.json.output.strengths && $('Basic LLM Chain').item.json.output.strengths.length > 0 ? $('Basic LLM Chain').item.json.output.strengths.map(item => '• ' + item).join('\\n') : 'لا يوجد' }}",
+            "Weaknesses": "={{ $('Basic LLM Chain').item.json.output.weaknesses && $('Basic LLM Chain').item.json.output.weaknesses.length > 0 ? $('Basic LLM Chain').item.json.output.weaknesses.map(item => '• ' + item).join('\\n') : 'لا يوجد' }}",
+            "Recommendations": "={{ $('Basic LLM Chain').item.json.output.recommendations && $('Basic LLM Chain').item.json.output.recommendations.length > 0 ? $('Basic LLM Chain').item.json.output.recommendations.map(item => '• ' + item).join('\\n') : 'لا يوجد' }}"
           },
           "matchingColumns": [
             "ID"
@@ -1042,8 +961,8 @@
       "type": "n8n-nodes-base.googleSheets",
       "typeVersion": 4.7,
       "position": [
-        608,
-        2608
+        592,
+        2464
       ],
       "id": "aaf2610c-4802-4f34-bf81-285d546722f4",
       "name": "Append or update row in sheet1",
@@ -1076,10 +995,10 @@
           "value": {
             "ID": "={{ $('Google Sheets Trigger').item.json.ID }}",
             "Descision Name": "={{ $('Google Sheets Trigger').item.json[\"Descision Name\"] }}",
-            "Decision Summary": "={{ $('AI Agent').item.json.output.decision_summary }}",
-            "Strengths": "={{ $('AI Agent').item.json.output.strengths.map((item, index) => `${index + 1}. ${item}`).join(\"\\n\") }}",
-            "Weaknesses": "={{ $('AI Agent').item.json.output.weaknesses.map((item, index) => `${index + 1}. ${item}`).join(\"\\n\") }}",
-            "Recommendations": "={{ $('AI Agent').item.json.output.recommendations.map((item, index) => `${index + 1}. ${item}`).join(\"\\n\") }}"
+            "Decision Summary": "={{ $('Basic LLM Chain').item.json.output.decision_summary }}",
+            "Strengths": "={{ $('Basic LLM Chain').item.json.output.strengths && $('Basic LLM Chain').item.json.output.strengths.length > 0 ? $('Basic LLM Chain').item.json.output.strengths.map(item => '• ' + item).join('\\n') : 'لا يوجد' }}",
+            "Weaknesses": "={{ $('Basic LLM Chain').item.json.output.weaknesses && $('Basic LLM Chain').item.json.output.weaknesses.length > 0 ? $('Basic LLM Chain').item.json.output.weaknesses.map(item => '• ' + item).join('\\n') : 'لا يوجد' }}",
+            "Recommendations": "={{ $('Basic LLM Chain').item.json.output.recommendations && $('Basic LLM Chain').item.json.output.recommendations.length > 0 ? $('Basic LLM Chain').item.json.output.recommendations.map(item => '• ' + item).join('\\n') : 'لا يوجد' }}"
           },
           "matchingColumns": [
             "ID"
@@ -1149,8 +1068,8 @@
       "type": "n8n-nodes-base.googleSheets",
       "typeVersion": 4.7,
       "position": [
-        608,
-        2800
+        592,
+        2656
       ],
       "id": "459b088f-8f0c-43de-a64d-95f8aea67e8f",
       "name": "Append or update row in sheet2",
@@ -1164,15 +1083,17 @@
     {
       "parameters": {
         "sendTo": "moathhazeem661@gmail.com",
-        "subject": "{{ $('Google Sheets Trigger').item.json['Descision Name'] }} قرار ممتاز",
-        "message": "=<!DOCTYPE html>\n<html lang=\"ar\" dir=\"rtl\">\n<head>\n    <meta charset=\"UTF-8\">\n    <style>\n        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background-color: #f4f7f6; color: #333; margin: 0; padding: 20px; }\n        .container { max-width: 600px; background: #ffffff; margin: 0 auto; padding: 30px; border-radius: 12px; box-shadow: 0 4px 15px rgba(0,0,0,0.05); border-top: 8px solid #2ecc71; }\n        .header { text-align: center; padding-bottom: 20px; border-bottom: 1px solid #eee; }\n        .badge { background-color: #2ecc71; color: white; padding: 6px 16px; border-radius: 20px; font-weight: bold; display: inline-block; font-size: 14px; }\n        h1 { color: #2c3e50; font-size: 24px; margin-top: 15px; }\n        p { line-height: 1.6; color: #555; font-size: 16px; }\n        .section-title { font-weight: bold; color: #2c3e50; margin-top: 25px; margin-bottom: 10px; font-size: 18px; display: flex; align-items: center; }\n        .box { background-color: #f8f9fa; padding: 15px; border-radius: 8px; border-right: 4px solid #cbd5e1; margin-bottom: 15px; white-space: pre-line; }\n        .box-strengths { border-right-color: #2ecc71; background-color: #f0fff4; }\n        .box-weaknesses { border-right-color: #e74c3c; background-color: #fff5f5; }\n        .box-recommendations { border-right-color: #3498db; background-color: #f0f7ff; }\n        .footer { text-align: center; margin-top: 30px; font-size: 12px; color: #999; border-top: 1px solid #eee; padding-top: 15px; }\n    </style>\n</head>\n<body>\n    <div class=\"container\">\n        <div class=\"header\">\n            <span class=\"badge\">تقرير الأداء اليومي</span>\n            <h1>الوضع ممتاز جداً! 🚀</h1>\n        </div>\n        \n        <p>مرحباً، بناءً على نظام دعم القرار الآلي، فقد حقق القرار الأخير تقييماً كاملاً وملفتاً للنظر.</p>\n        \n        <div class=\"section-title\">💪 نقاط القوة:</div>\n        <div class=\"box box-strengths\">{{ $json[\"Strengths\"] }}</div>\n        \n        <div class=\"section-title\">⚠️ نقاط الضعف (للمحافظة على المستوى):</div>\n        <div class=\"box box-weaknesses\">{{ $json[\"Weaknesses\"] }}</div>\n        \n        <div class=\"section-title\">💡 التوصيات والمقترحات المكملة:</div>\n        <div class=\"box box-recommendations\">{{ $json[\"Recommendations\"] }}</div>\n        \n        <div class=\"footer\">\n            هذا البريد الإلكتروني تم إنشاؤه تلقائياً بواسطة نظام Learnova ADSS.\n        </div>\n    </div>\n</body>\n</html>",
-        "options": {}
+        "subject": "{{ $('Google Sheets Trigger').item.json[\"Descision Name\"] }}",
+        "message": "=<!DOCTYPE html>\n<html>\n<head>\n  <meta charset=\"utf-8\">\n  <meta name=\"viewport\" content=\"width=device-width, initial-scale=1.0\">\n  <title>Outstanding Success!</title>\n  <style>\n    @media only screen and (max-width: 600px) {\n      .container { width: 100% !important; border-radius: 0 !important; }\n      .header { padding: 30px 20px !important; }\n      .content { padding: 20px !important; }\n      h1 { font-size: 24px !important; }\n    }\n  </style>\n</head>\n<body style=\"margin: 0; padding: 0; background-color: #f4f6f8; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; direction: rtl; text-align: right; -webkit-text-size-adjust: 100%; -ms-text-size-adjust: 100%;\">\n  <table width=\"100%\" border=\"0\" cellspacing=\"0\" cellpadding=\"0\" style=\"background-color: #f4f6f8; padding: 20px 0;\">\n    <tr>\n      <td align=\"center\">\n        <table class=\"container\" width=\"600\" border=\"0\" cellspacing=\"0\" cellpadding=\"0\" style=\"background-color: #ffffff; border-radius: 12px; overflow: hidden; box-shadow: 0 4px 15px rgba(0,0,0,0.05); width: 100%; max-width: 600px;\">\n          <!-- Header -->\n          <tr>\n            <td class=\"header\" style=\"background: linear-gradient(135deg, #10b981, #059669); padding: 40px 30px; text-align: center;\">\n              <h1 style=\"color: #ffffff; margin: 0; font-size: 28px; font-weight: 700;\">إنجاز استثنائي! 🌟</h1>\n              <p style=\"color: #d1fae5; margin: 10px 0 0 0; font-size: 16px;\">تقييم القرار النهائي: 10/10</p>\n            </td>\n          </tr>\n          <!-- Content -->\n          <tr>\n            <td class=\"content\" style=\"padding: 30px 40px;\">\n              <p style=\"font-size: 16px; color: #374151; line-height: 1.6; margin: 0 0 20px 0;\">\n                مرحباً معاذ، بناءً على التحليل التلقائي لنظام دعم اتخاذ القرار، فقد حقق قرارك الأخير أعلى درجات النجاح والتنفيذ المثالي.\n              </p>\n              \n              <div style=\"background-color: #f0fdf4; border-right: 4px solid #10b981; padding: 15px; margin-bottom: 25px; border-radius: 4px;\">\n                <h3 style=\"margin: 0 0 5px 0; color: #065f46; font-size: 15px;\">ملخص القرار:</h3>\n                <p style=\"margin: 0; color: #166534; font-size: 14px;\">{{ $json.output.decision_summary }}</p>\n              </div>\n\n              <h3 style=\"color: #111827; font-size: 16px; margin: 0 0 10px 0; border-bottom: 2px solid #e5e7eb; padding-bottom: 5px;\">🏆 أبرز نقاط القوة وعوامل النجاح:</h3>\n              <ul style=\"margin: 0 0 25px 0; padding-right: 20px; color: #4b5563; font-size: 14px; line-height: 1.8;\">\n                <li>{{ $json.output.strengths.join('</li><li>') }}</li>\n              </ul>\n\n              <h3 style=\"color: #111827; font-size: 16px; margin: 0 0 10px 0; border-bottom: 2px solid #e5e7eb; padding-bottom: 5px;\">💡 التوصيات للحفاظ على هذا المستوى:</h3>\n              <ul style=\"margin: 0 0 10px 0; padding-right: 20px; color: #4b5563; font-size: 14px; line-height: 1.8;\">\n                <li>{{ $json.output.recommendations.join('</li><li>') }}</li>\n              </ul>\n            </td>\n          </tr>\n          <!-- Footer -->\n          <tr>\n            <td style=\"background-color: #f9fafb; padding: 20px; text-align: center; border-top: 1px solid #e5e7eb;\">\n              <p style=\"margin: 0; font-size: 12px; color: #9ca3af;\">تم توليد هذا التقرير تلقائياً بواسطة نظام ADSS Automation</p>\n            </td>\n          </tr>\n        </table>\n      </td>\n    </tr>\n  </table>\n</body>\n</html>",
+        "options": {
+          "appendAttribution": false
+        }
       },
       "type": "n8n-nodes-base.gmail",
       "typeVersion": 2.2,
       "position": [
         384,
-        2240
+        2064
       ],
       "id": "12acdb92-75aa-4c9f-a584-a7c8f5edd3ef",
       "name": "Send a message2",
@@ -1187,15 +1108,17 @@
     {
       "parameters": {
         "sendTo": "moathhazeem661@gmail.com",
-        "subject": "معلاجات عاجلة {{ $('Google Sheets Trigger').item.json['Descision Name'] }}",
-        "message": "=<!DOCTYPE html>\n<html lang=\"ar\" dir=\"rtl\">\n<head>\n    <meta charset=\"UTF-8\">\n    <style>\n        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background-color: #f4f7f6; color: #333; margin: 0; padding: 20px; }\n        .container { max-width: 600px; background: #ffffff; margin: 0 auto; padding: 30px; border-radius: 12px; box-shadow: 0 4px 15px rgba(0,0,0,0.05); border-top: 8px solid #e74c3c; }\n        .header { text-align: center; padding-bottom: 20px; border-bottom: 1px solid #eee; }\n        .badge { background-color: #e74c3c; color: white; padding: 6px 16px; border-radius: 20px; font-weight: bold; display: inline-block; font-size: 14px; }\n        h1 { color: #c0392b; font-size: 24px; margin-top: 15px; }\n        p { line-height: 1.6; color: #555; font-size: 16px; }\n        .section-title { font-weight: bold; color: #2c3e50; margin-top: 25px; margin-bottom: 10px; font-size: 18px; display: flex; align-items: center; }\n        .box { background-color: #f8f9fa; padding: 15px; border-radius: 8px; border-right: 4px solid #cbd5e1; margin-bottom: 15px; white-space: pre-line; }\n        .box-strengths { border-right-color: #2ecc71; background-color: #f0fff4; }\n        .box-weaknesses { border-right-color: #e74c3c; background-color: #fff5f5; }\n        .box-recommendations { border-right-color: #3498db; background-color: #f0f7ff; }\n        .footer { text-align: center; margin-top: 30px; font-size: 12px; color: #999; border-top: 1px solid #eee; padding-top: 15px; }\n    </style>\n</head>\n<body>\n    <div class=\"container\">\n        <div class=\"header\">\n            <span class=\"badge\">تنبیه وتحليل عاجل</span>\n            <h1>الوضع بحاجة إلى مراجعة فورية! 🚨</h1>\n        </div>\n        \n        <p>مرحباً، يشير نظام دعم القرار الآلي إلى أن النتيجة الحالية حرجة وتتطلب تدخلاً سريعاً لإعادة التوجيه وتصحيح المسار.</p>\n        \n        <div class=\"section-title\">⚠️ نقاط الضعف الأساسية:</div>\n        <div class=\"box box-weaknesses\">{{ $json[\"Weaknesses\"] }}</div>\n        \n        <div class=\"section-title\">💡 التوصيات والمقترحات للتصحيح:</div>\n        <div class=\"box box-recommendations\">{{ $json[\"Recommendations\"] }}</div>\n\n        <div class=\"section-title\">🔍 نقاط القوة (التي يمكن الاستناد عليها):</div>\n        <div class=\"box box-strengths\">{{ $json[\"Strengths\"] }}</div>\n        \n        <div class=\"footer\">\n            هذا البريد الإلكتروني تم إنشاؤه تلقائياً بواسطة نظام Learnova ADSS.\n        </div>\n    </div>\n</body>\n</html>",
-        "options": {}
+        "subject": "{{ $('Google Sheets Trigger').item.json[\"Descision Name\"] }}",
+        "message": "=<!DOCTYPE html>\n<html>\n<head>\n  <meta charset=\"utf-8\">\n  <meta name=\"viewport\" content=\"width=device-width, initial-scale=1.0\">\n  <title>Absolute Failure</title>\n  <style>\n    @media only screen and (max-width: 600px) {\n      .container { width: 100% !important; border-radius: 0 !important; }\n      .header { padding: 30px 20px !important; }\n      .content { padding: 20px !important; }\n      h1 { font-size: 24px !important; }\n    }\n  </style>\n</head>\n<body style=\"margin: 0; padding: 0; background-color: #f4f6f8; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; direction: rtl; text-align: right; -webkit-text-size-adjust: 100%; -ms-text-size-adjust: 100%;\">\n  <table width=\"100%\" border=\"0\" cellspacing=\"0\" cellpadding=\"0\" style=\"background-color: #f4f6f8; padding: 20px 0;\">\n    <tr>\n      <td align=\"center\">\n        <table class=\"container\" width=\"600\" border=\"0\" cellspacing=\"0\" cellpadding=\"0\" style=\"background-color: #ffffff; border-radius: 12px; overflow: hidden; box-shadow: 0 4px 15px rgba(0,0,0,0.05); width: 100%; max-width: 600px;\">\n          <!-- Header -->\n          <tr>\n            <td class=\"header\" style=\"background: linear-gradient(135deg, #dc2626, #991b1b); padding: 40px 30px; text-align: center;\">\n              <h1 style=\"color: #ffffff; margin: 0; font-size: 28px; font-weight: 700;\">تنبيه: فشل كلي للقرار الحالي 🚨</h1>\n              <p style=\"color: #fee2e2; margin: 10px 0 0 0; font-size: 16px;\">تقييم القرار النهائي: 0/10</p>\n            </td>\n          </tr>\n          <!-- Content -->\n          <tr>\n            <td class=\"content\" style=\"padding: 30px 40px;\">\n              <p style=\"font-size: 16px; color: #374151; line-height: 1.6; margin: 0 0 20px 0;\">\n                مرحباً معاذ، يعلن النظام عن توقف أو فشل كامل في تطبيق القرار المستهدف. يتطلب هذا الملف إعادة مراجعة جذرية وفورية لتجنب تكرار الأخطاء الإدارية أو الشخصية المماثلة.\n              </p>\n              \n              <div style=\"background-color: #fef2f2; border-right: 4px solid #dc2626; padding: 15px; margin-bottom: 25px; border-radius: 4px;\">\n                <h3 style=\"margin: 0 0 5px 0; color: #991b1b; font-size: 15px;\">تقرير الفشل الميداني:</h3>\n                <p style=\"margin: 0; color: #7f1d1d; font-size: 14px;\">{{ $json.output.decision_summary }}</p>\n              </div>\n\n              <h3 style=\"color: #111827; font-size: 16px; margin: 0 0 10px 0; border-bottom: 2px solid #e5e7eb; padding-bottom: 5px;\">🚨 الأسباب الرئيسية للانهيار الكامل:</h3>\n              <ul style=\"margin: 0 0 25px 0; padding-right: 20px; color: #991b1b; font-size: 14px; line-height: 1.8;\">\n                <li>{{ $json.output.weaknesses.join('</li><li>') }}</li>\n              </ul>\n\n              <h3 style=\"color: #111827; font-size: 16px; margin: 0 0 10px 0; border-bottom: 2px solid #e5e7eb; padding-bottom: 5px;\">📋 استراتيجية بديلة وإعادة التوجيه الموصى بها:</h3>\n              <ul style=\"margin: 0 0 10px 0; padding-right: 20px; color: #4b5563; font-size: 14px; line-height: 1.8;\">\n                <li>{{ $json.output.recommendations.join('</li><li>') }}</li>\n              </ul>\n            </td>\n          </tr>\n          <!-- Footer -->\n          <tr>\n            <td style=\"background-color: #f9fafb; padding: 20px; text-align: center; border-top: 1px solid #e5e7eb;\">\n              <p style=\"margin: 0; font-size: 12px; color: #9ca3af;\">تم توليد هذا التقرير تلقائياً بواسطة نظام ADSS Automation</p>\n            </td>\n          </tr>\n        </table>\n      </td>\n    </tr>\n  </table>\n</body>\n</html>",
+        "options": {
+          "appendAttribution": false
+        }
       },
       "type": "n8n-nodes-base.gmail",
       "typeVersion": 2.2,
       "position": [
         384,
-        2432
+        2256
       ],
       "id": "92f5f6fa-f242-466a-a6cc-37ccbe3136b0",
       "name": "Send a message3",
@@ -1229,10 +1152,10 @@
           "value": {
             "ID": "={{ $('Google Sheets Trigger').item.json.ID }}",
             "Descision Name": "={{ $('Google Sheets Trigger').item.json[\"Descision Name\"] }}",
-            "Decision Summary": "={{ $('AI Agent').item.json.output.decision_summary }}",
-            "Strengths": "={{ $('AI Agent').item.json.output.strengths.map((item, index) => `${index + 1}. ${item}`).join(\"\\n\") }}",
-            "Weaknesses": "={{ $('AI Agent').item.json.output.weaknesses.map((item, index) => `${index + 1}. ${item}`).join(\"\\n\") }}",
-            "Recommendations": "={{ $('AI Agent').item.json.output.recommendations.map((item, index) => `${index + 1}. ${item}`).join(\"\\n\") }}"
+            "Decision Summary": "={{ $('Basic LLM Chain').item.json.output.decision_summary }}",
+            "Strengths": "={{ $('Basic LLM Chain').item.json.output.strengths && $('Basic LLM Chain').item.json.output.strengths.length > 0 ? $('Basic LLM Chain').item.json.output.strengths.map(item => '• ' + item).join('\\n') : 'لا يوجد' }}",
+            "Weaknesses": "={{ $('Basic LLM Chain').item.json.output.weaknesses && $('Basic LLM Chain').item.json.output.weaknesses.length > 0 ? $('Basic LLM Chain').item.json.output.weaknesses.map(item => '• ' + item).join('\\n') : 'لا يوجد' }}",
+            "Recommendations": "={{ $('Basic LLM Chain').item.json.output.recommendations && $('Basic LLM Chain').item.json.output.recommendations.length > 0 ? $('Basic LLM Chain').item.json.output.recommendations.map(item => '• ' + item).join('\\n') : 'لا يوجد' }}"
           },
           "matchingColumns": [
             "ID"
@@ -1303,7 +1226,7 @@
       "typeVersion": 4.7,
       "position": [
         592,
-        2240
+        2064
       ],
       "id": "bd4a7c45-589c-41ae-ab1b-9fbc5def2433",
       "name": "Append or update row in sheet3",
@@ -1336,10 +1259,10 @@
           "value": {
             "ID": "={{ $('Google Sheets Trigger').item.json.ID }}",
             "Descision Name": "={{ $('Google Sheets Trigger').item.json[\"Descision Name\"] }}",
-            "Decision Summary": "={{ $('AI Agent').item.json.output.decision_summary }}",
-            "Strengths": "={{ $('AI Agent').item.json.output.strengths.map((item, index) => `${index + 1}. ${item}`).join(\"\\n\") }}",
-            "Weaknesses": "={{ $('AI Agent').item.json.output.weaknesses.map((item, index) => `${index + 1}. ${item}`).join(\"\\n\") }}",
-            "Recommendations": "={{ $('AI Agent').item.json.output.recommendations.map((item, index) => `${index + 1}. ${item}`).join(\"\\n\") }}"
+            "Decision Summary": "={{ $('Basic LLM Chain').item.json.output.decision_summary }}",
+            "Strengths": "={{ $('Basic LLM Chain').item.json.output.strengths && $('Basic LLM Chain').item.json.output.strengths.length > 0 ? $('Basic LLM Chain').item.json.output.strengths.map(item => '• ' + item).join('\\n') : 'لا يوجد' }}",
+            "Weaknesses": "={{ $('Basic LLM Chain').item.json.output.weaknesses && $('Basic LLM Chain').item.json.output.weaknesses.length > 0 ? $('Basic LLM Chain').item.json.output.weaknesses.map(item => '• ' + item).join('\\n') : 'لا يوجد' }}",
+            "Recommendations": "={{ $('Basic LLM Chain').item.json.output.recommendations && $('Basic LLM Chain').item.json.output.recommendations.length > 0 ? $('Basic LLM Chain').item.json.output.recommendations.map(item => '• ' + item).join('\\n') : 'لا يوجد' }}"
           },
           "matchingColumns": [
             "ID"
@@ -1410,7 +1333,7 @@
       "typeVersion": 4.7,
       "position": [
         592,
-        2432
+        2256
       ],
       "id": "2e8e28b8-231d-47e0-9073-d8ab27c53015",
       "name": "Append or update row in sheet4",
@@ -1418,6 +1341,321 @@
         "googleSheetsOAuth2Api": {
           "id": "qPcYFvcEFGVnuJDH",
           "name": "Google Sheets account 2"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "=Please analyze the following decision data:\n- Decision Name: {{ $json[\"Descision Name\"] }}\n- Actual Outcome: {{ $json[\"Actual Outcome\"] }}\n- Outcome Rating: {{ $json[\"Outcome Rating\"] }}\n- Unexpected Factors: {{ $json[\"Unexpected Factors\"] }}\n- Date of Reflection: {{ $json[\"Date of Reflection\"] }}",
+        "hasOutputParser": true,
+        "messages": {
+          "messageValues": [
+            {
+              "message": "=You are an expert in analyzing administrative and personal decisions. Your sole task is to compare expectations with reality, classify the outcome into one of the four categories, and extract both strengths and weaknesses for all evaluation levels to ensure comprehensive analysis.\n\nLANGUAGE RULE:\nDetect the language of the input text (Decision/Expectations/Reality). If the input is in Arabic, all generated textual values in the JSON output (decision_summary, strengths, weaknesses, recommendations) MUST be written in Arabic. If the input is in English, they MUST be written in English. The JSON keys must always remain in English.\n\nCRITICAL CLASSIFICATION RULES:\n- \"10 - Outstanding Success\": Rating is 10. (Extract strengths and any minor weaknesses/areas for continuous optimization).\n- \"5 to <10 - Positive/Acceptable Outcome\": Rating is between 5 and less than 10. (Extract strengths and clear weaknesses/areas for improvement).\n- \">0 to <5 - Marginal/Struggling Outcome\": Rating is between 0 and less than 5. (Extract weaknesses and any minimal strengths or initial efforts).\n- \"0 - Absolute Failure\": Rating is 0. (Extract critical weaknesses and structural failures; leave strengths empty [] only if absolutely none exist).\n\nOutput ONLY raw JSON matching the required schema. Do not add markdown blocks or text around it."
+            }
+          ]
+        },
+        "batching": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.chainLlm",
+      "typeVersion": 1.9,
+      "position": [
+        -336,
+        2368
+      ],
+      "id": "b274d8aa-5119-4c98-9167-ba30ab8539eb",
+      "name": "Basic LLM Chain"
+    },
+    {
+      "parameters": {
+        "pollTimes": {
+          "item": [
+            {
+              "mode": "everyMinute"
+            }
+          ]
+        },
+        "documentId": {
+          "__rl": true,
+          "value": "1PxNA1-3gD350MTcTtqd5uViJ8SO0uX-WwnIigjleUZw",
+          "mode": "list",
+          "cachedResultName": "Automated Decision Support System",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1PxNA1-3gD350MTcTtqd5uViJ8SO0uX-WwnIigjleUZw/edit?usp=drivesdk"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": 1502700892,
+          "mode": "list",
+          "cachedResultName": "Decisions Metrics",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1PxNA1-3gD350MTcTtqd5uViJ8SO0uX-WwnIigjleUZw/edit#gid=1502700892"
+        },
+        "event": "rowAdded",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheetsTrigger",
+      "typeVersion": 1,
+      "position": [
+        -448,
+        3360
+      ],
+      "id": "17281f2e-d5f7-4828-9d32-e17e606fc599",
+      "name": "Google Sheets Trigger1",
+      "credentials": {
+        "googleSheetsTriggerOAuth2Api": {
+          "id": "5ILyhPQ03kHiwfqL",
+          "name": "Google Sheets Trigger account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "=Please analyze the following decision data:\n- Decision Name: {{ $json[\"Decision Name\"] }}\n- Financial Score: {{ $json[\"Financial Score\"] }}\n- Time Management Score: {{ $json[\"Time Management Score\"] }}\n- Execution Discipline: {{ $json[\"Execution Discipline\"] }}\n- Emotional/Mental Score: {{ $json[\"Emotional/Mental Score\"] }}\n- Overall Average: {{ $json[\"Overall Average\"] }}",
+        "hasOutputParser": true,
+        "messages": {
+          "messageValues": [
+            {
+              "message": "=You are an expert in analyzing administrative and personal decisions. Your task is to compare expectations with reality and provide a strict numerical evaluation across four key criteria based on the provided decision text.\n\nFor every decision, you must generate a score from 1 to 10 for each of the following metrics:\n1. financial_score: Financial efficiency, cost-effectiveness, or budget commitment.\n2. time_score: Adherence to schedules, deadlines, and time efficiency.\n3. discipline_score: Execution discipline, consistency, and avoidance of procrastination.\n4. mental_score: Psychological impact, stress level management, or mental clarity resulting from the decision.\n\nCRITICAL OUTPUT RULE:\nCalculate the 'overall_average' as the mathematical average of the four scores above.\nOutput ONLY raw JSON matching the required schema. Do not add markdown blocks or text around it."
+            }
+          ]
+        },
+        "batching": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.chainLlm",
+      "typeVersion": 1.9,
+      "position": [
+        -208,
+        3360
+      ],
+      "id": "9b4b1967-e3e3-4dd1-a053-80c229e132a5",
+      "name": "Basic LLM Chain1"
+    },
+    {
+      "parameters": {
+        "modelName": "models/gemini-3.5-flash",
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatGoogleGemini",
+      "typeVersion": 1.1,
+      "position": [
+        -208,
+        3568
+      ],
+      "id": "e1997dae-21a6-4122-834d-2f9da34cb4ee",
+      "name": "Google Gemini Chat Model1",
+      "credentials": {
+        "googlePalmApi": {
+          "id": "5bQnUFfdkzbJs3Ln",
+          "name": "Google Gemini(PaLM) Api account 2"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "schemaType": "manual",
+        "inputSchema": "{\n  \"type\": \"object\",\n  \"properties\": {\n    \"financial_score\": { \"type\": \"number\" },\n    \"time_score\": { \"type\": \"number\" },\n    \"discipline_score\": { \"type\": \"number\" },\n    \"mental_score\": { \"type\": \"number\" },\n    \"overall_average\": { \"type\": \"number\" }\n  }\n}"
+      },
+      "type": "@n8n/n8n-nodes-langchain.outputParserStructured",
+      "typeVersion": 1.3,
+      "position": [
+        -64,
+        3568
+      ],
+      "id": "d257cd22-31f2-426c-80fc-8202e7d118af",
+      "name": "Structured Output Parser2"
+    },
+    {
+      "parameters": {
+        "url": "https://datastudio.google.com/embed/reporting/b177eb94-874c-473b-a912-8086632123fe/page/It22F",
+        "options": {
+          "response": {
+            "response": {
+              "responseFormat": "file"
+            }
+          }
+        }
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        432,
+        3488
+      ],
+      "id": "d3b12054-1207-43b1-988d-92f075bc2a13",
+      "name": "HTTP Request"
+    },
+    {
+      "parameters": {
+        "rules": {
+          "values": [
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 3
+                },
+                "conditions": [
+                  {
+                    "leftValue": "={{ $json.output.overall_average }}",
+                    "rightValue": 5,
+                    "operator": {
+                      "type": "number",
+                      "operation": "gte"
+                    },
+                    "id": "060a5c3a-90d1-4d74-b4e2-3b6af00cd44a"
+                  }
+                ],
+                "combinator": "and"
+              }
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 3
+                },
+                "conditions": [
+                  {
+                    "id": "c05c6d4b-cf4d-4fce-8a2b-22c3aa587f05",
+                    "leftValue": "={{ $json.output.overall_average }}",
+                    "rightValue": 5,
+                    "operator": {
+                      "type": "number",
+                      "operation": "lt"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              }
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.switch",
+      "typeVersion": 3.4,
+      "position": [
+        208,
+        3360
+      ],
+      "id": "1161c112-525b-4f9f-9454-0f3c25991283",
+      "name": "Switch2"
+    },
+    {
+      "parameters": {
+        "sendTo": "moathhazeem661@gmail.com",
+        "subject": "={{ $('Google Sheets Trigger1').item.json['Decision Name'] }}",
+        "message": "=<!DOCTYPE html>\n<html lang=\"ar\" dir=\"rtl\">\n<head>\n    <meta charset=\"UTF-8\">\n    <meta name=\"viewport\" content=\"width=device-width, initial-scale=1.0\">\n    <title>تقرير نظام دعم القرار</title>\n    <link href=\"https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700&display=swap\" rel=\"stylesheet\">\n    <style>\n        body {\n            font-family: 'Cairo', 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;\n            background-color: #f4f6f9;\n            color: #333333;\n            margin: 0;\n            padding: 20px;\n            -webkit-print-color-adjust: exact;\n        }\n        .email-container {\n            max-width: 700px;\n            margin: 0 auto;\n            background-color: #ffffff;\n            border-radius: 8px;\n            overflow: hidden;\n            box-shadow: 0 4px 10px rgba(0,0,0,0.05);\n        }\n        .header {\n            background-color: #1a252f;\n            color: #ffffff;\n            padding: 25px;\n            text-align: center;\n        }\n        .header h1 {\n            margin: 0;\n            font-size: 22px;\n            font-weight: 600;\n        }\n        .content {\n            padding: 30px;\n        }\n        .status-badge {\n            display: inline-block;\n            padding: 8px 16px;\n            border-radius: 20px;\n            font-weight: bold;\n            font-size: 14px;\n            margin-bottom: 20px;\n        }\n        .data-table {\n            width: 100%;\n            border-collapse: collapse;\n            margin-top: 15px;\n            margin-bottom: 30px;\n        }\n        .data-table th, .data-table td {\n            padding: 12px 15px;\n            text-align: right;\n            border-bottom: 1px solid #e1e8ed;\n        }\n        .data-table th {\n            background-color: #f8f9fa;\n            color: #555555;\n            font-weight: 600;\n        }\n        .score-highlight {\n            font-size: 24px;\n            font-weight: bold;\n            color: #1a252f;\n        }\n        .dashboard-section {\n            margin-top: 20px;\n            border-top: 2px dashed #e1e8ed;\n            padding-top: 20px;\n            text-align: center; /* لتوسيط زر التقرير */\n        }\n        .dashboard-section h2 {\n            font-size: 18px;\n            color: #1a252f;\n            margin-bottom: 5px;\n            text-align: right;\n        }\n        .dashboard-section p {\n            font-size: 14px;\n            color: #7f8c8d;\n            margin-bottom: 20px;\n            text-align: right;\n        }\n        /* تحويل الرابط إلى زر تفاعلي أنيق وعريض لسهولة الضغط */\n        .btn-link {\n            display: inline-block;\n            background-color: #1a252f;\n            color: #ffffff !important;\n            text-decoration: none;\n            padding: 14px 30px;\n            font-weight: 600;\n            font-size: 15px;\n            border-radius: 6px;\n            box-shadow: 0 3px 6px rgba(0,0,0,0.1);\n            transition: background-color 0.2s ease;\n            margin: 10px 0;\n        }\n        .btn-link:hover {\n            background-color: #2c3e50;\n        }\n        .footer {\n            background-color: #f8f9fa;\n            padding: 15px;\n            text-align: center;\n            font-size: 12px;\n            color: #7f8c8d;\n            border-top: 1px solid #e1e8ed;\n        }\n    </style>\n</head>\n<body>\n    <div class=\"email-container\" style=\"border-top: 6px solid {{ $('Google Sheets Trigger1').item.json['Overall Average'] < 5 ? '#e74c3c' : '#2ecc71' }};\">\n        \n        <div class=\"header\">\n            <h1>نظام دعم القرار المؤتمت (ADSS)</h1>\n        </div>\n        \n        <div class=\"content\">\n            <h3>مرحباً، إليك تحليل القرار الحالي:</h3>\n            \n            <div class=\"status-badge\" style=\"background-color: {{ $('Google Sheets Trigger1').item.json['Overall Average'] < 5 ? '#fde8e8' : '#eafaf1' }}; color: {{ $('Google Sheets Trigger1').item.json['Overall Average'] < 5 ? '#e74c3c' : '#2ecc71' }};\">\n                {{ $('Google Sheets Trigger1').item.json['Overall Average'] < 5 ? '⚠️ يتطلب تحسين ومراجعة' : '✅ أداء ممتاز ومستقر' }}\n            </div>\n            \n            <p><strong>اسم القرار:</strong> {{ $('Google Sheets Trigger1').item.json['Decision Name'] }}</p>\n            <p><strong>التاريخ:</strong> {{ $('Google Sheets Trigger1').item.json.Date }}</p>\n            \n            <table class=\"data-table\">\n                <thead>\n                    <tr>\n                        <th>المعيار</th>\n                        <th>التقييم</th>\n                    </tr>\n                </thead>\n                <tbody>\n                    <tr>\n                        <td>الجانب المالي (Financial Score)</td>\n                        <td>{{ $('Google Sheets Trigger1').item.json['Financial Score'] }} / 10</td>\n                    </tr>\n                    <tr>\n                        <td>إدارة الوقت (Time Management Score)</td>\n                        <td>{{ $('Google Sheets Trigger1').item.json['Time Management Score'] }} / 10</td>\n                    </tr>\n                    <tr>\n                        <td>الانضباط في التنفيذ (Execution Discipline)</td>\n                        <td>{{ $('Google Sheets Trigger1').item.json['Execution Discipline'] }} / 10</td>\n                    </tr>\n                    <tr>\n                        <td>الجانب النفسي/العقلي (Emotional/Mental Score)</td>\n                        <td>{{ $('Google Sheets Trigger1').item.json['Emotional/Mental Score'] }} / 10</td>\n                    </tr>\n                    <tr style=\"background-color: #f4f6f9;\">\n                        <td><strong>المعدل العام (Overall Average)</strong></td>\n                        <td class=\"score-highlight\">{{ $('Google Sheets Trigger1').item.json['Overall Average'] }}</td>\n                    </tr>\n                </tbody>\n            </table>\n\n            <div class=\"dashboard-section\">\n                <h2>الرسوم البيانية والتحليلات المتقدمة</h2>\n                <p>لمشاهدة مخططات الأداء التفاعلية وحركة المؤشرات الحية عبر منصة جوجل، اضغط على الزر أدناه:</p>\n                \n                <a class=\"btn-link\" href=\"https://datastudio.google.com/embed/reporting/b177eb94-874c-473b-a912-8086632123fe/page/It22F\" target=\"_blank\">📊 اضغط هنا لفتح لوحة البيانات الحية</a>\n            </div>\n        </div>\n\n        <div class=\"footer\">\n            هذا البريد تم توليده تلقائياً بواسطة نظام دعم القرار الذكي الخاص بك.\n        </div>\n    </div>\n</body>\n</html>",
+        "options": {
+          "appendAttribution": false
+        }
+      },
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.2,
+      "position": [
+        688,
+        3280
+      ],
+      "id": "7b54a939-f8ae-455d-935e-3f631ed95667",
+      "name": "Send a message4",
+      "webhookId": "b5340098-a7fb-42d3-baaa-95a5b2059ecd",
+      "credentials": {
+        "gmailOAuth2": {
+          "id": "9NcBOjKo4wAbWWGE",
+          "name": "Gmail account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "sendTo": "moathhazeem661@gmail.com",
+        "subject": "{{ $('Google Sheets Trigger').item.json[\"Descision Name\"] }}",
+        "message": "=<!DOCTYPE html>\n<html lang=\"ar\" dir=\"rtl\">\n<head>\n    <meta charset=\"UTF-8\">\n    <meta name=\"viewport\" content=\"width=device-width, initial-scale=1.0\">\n    <title>تقرير نظام دعم القرار</title>\n    <link href=\"https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700&display=swap\" rel=\"stylesheet\">\n    <style>\n        body {\n            font-family: 'Cairo', 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;\n            background-color: #f4f6f9;\n            color: #333333;\n            margin: 0;\n            padding: 20px;\n            -webkit-print-color-adjust: exact;\n        }\n        .email-container {\n            max-width: 700px;\n            margin: 0 auto;\n            background-color: #ffffff;\n            border-radius: 8px;\n            overflow: hidden;\n            box-shadow: 0 4px 10px rgba(0,0,0,0.05);\n        }\n        .header {\n            background-color: #1a252f;\n            color: #ffffff;\n            padding: 25px;\n            text-align: center;\n        }\n        .header h1 {\n            margin: 0;\n            font-size: 22px;\n            font-weight: 600;\n        }\n        .content {\n            padding: 30px;\n        }\n        .status-badge {\n            display: inline-block;\n            padding: 8px 16px;\n            border-radius: 20px;\n            font-weight: bold;\n            font-size: 14px;\n            margin-bottom: 20px;\n        }\n        .data-table {\n            width: 100%;\n            border-collapse: collapse;\n            margin-top: 15px;\n            margin-bottom: 30px;\n        }\n        .data-table th, .data-table td {\n            padding: 12px 15px;\n            text-align: right;\n            border-bottom: 1px solid #e1e8ed;\n        }\n        .data-table th {\n            background-color: #f8f9fa;\n            color: #555555;\n            font-weight: 600;\n        }\n        .score-highlight {\n            font-size: 24px;\n            font-weight: bold;\n            color: #1a252f;\n        }\n        .dashboard-section {\n            margin-top: 20px;\n            border-top: 2px dashed #e1e8ed;\n            padding-top: 20px;\n            text-align: center; /* لتوسيط زر التقرير */\n        }\n        .dashboard-section h2 {\n            font-size: 18px;\n            color: #1a252f;\n            margin-bottom: 5px;\n            text-align: right;\n        }\n        .dashboard-section p {\n            font-size: 14px;\n            color: #7f8c8d;\n            margin-bottom: 20px;\n            text-align: right;\n        }\n        /* تحويل الرابط إلى زر تفاعلي أنيق وعريض لسهولة الضغط */\n        .btn-link {\n            display: inline-block;\n            background-color: #1a252f;\n            color: #ffffff !important;\n            text-decoration: none;\n            padding: 14px 30px;\n            font-weight: 600;\n            font-size: 15px;\n            border-radius: 6px;\n            box-shadow: 0 3px 6px rgba(0,0,0,0.1);\n            transition: background-color 0.2s ease;\n            margin: 10px 0;\n        }\n        .btn-link:hover {\n            background-color: #2c3e50;\n        }\n        .footer {\n            background-color: #f8f9fa;\n            padding: 15px;\n            text-align: center;\n            font-size: 12px;\n            color: #7f8c8d;\n            border-top: 1px solid #e1e8ed;\n        }\n    </style>\n</head>\n<body>\n    <div class=\"email-container\" style=\"border-top: 6px solid {{ $('Google Sheets Trigger1').item.json['Overall Average'] < 5 ? '#e74c3c' : '#2ecc71' }};\">\n        \n        <div class=\"header\">\n            <h1>نظام دعم القرار المؤتمت (ADSS)</h1>\n        </div>\n        \n        <div class=\"content\">\n            <h3>مرحباً، إليك تحليل القرار الحالي:</h3>\n            \n            <div class=\"status-badge\" style=\"background-color: {{ $('Google Sheets Trigger1').item.json['Overall Average'] < 5 ? '#fde8e8' : '#eafaf1' }}; color: {{ $('Google Sheets Trigger1').item.json['Overall Average'] < 5 ? '#e74c3c' : '#2ecc71' }};\">\n                {{ $('Google Sheets Trigger1').item.json['Overall Average'] < 5 ? '⚠️ يتطلب تحسين ومراجعة' : '✅ أداء ممتاز ومستقر' }}\n            </div>\n            \n            <p><strong>اسم القرار:</strong> {{ $('Google Sheets Trigger1').item.json['Decision Name'] }}</p>\n            <p><strong>التاريخ:</strong> {{ $('Google Sheets Trigger1').item.json.Date }}</p>\n            \n            <table class=\"data-table\">\n                <thead>\n                    <tr>\n                        <th>المعيار</th>\n                        <th>التقييم</th>\n                    </tr>\n                </thead>\n                <tbody>\n                    <tr>\n                        <td>الجانب المالي (Financial Score)</td>\n                        <td>{{ $('Google Sheets Trigger1').item.json['Financial Score'] }} / 10</td>\n                    </tr>\n                    <tr>\n                        <td>إدارة الوقت (Time Management Score)</td>\n                        <td>{{ $('Google Sheets Trigger1').item.json['Time Management Score'] }} / 10</td>\n                    </tr>\n                    <tr>\n                        <td>الانضباط في التنفيذ (Execution Discipline)</td>\n                        <td>{{ $('Google Sheets Trigger1').item.json['Execution Discipline'] }} / 10</td>\n                    </tr>\n                    <tr>\n                        <td>الجانب النفسي/العقلي (Emotional/Mental Score)</td>\n                        <td>{{ $('Google Sheets Trigger1').item.json['Emotional/Mental Score'] }} / 10</td>\n                    </tr>\n                    <tr style=\"background-color: #f4f6f9;\">\n                        <td><strong>المعدل العام (Overall Average)</strong></td>\n                        <td class=\"score-highlight\">{{ $('Google Sheets Trigger1').item.json['Overall Average'] }}</td>\n                    </tr>\n                </tbody>\n            </table>\n\n            <div class=\"dashboard-section\">\n                <h2>الرسوم البيانية والتحليلات المتقدمة</h2>\n                <p>لمشاهدة مخططات الأداء التفاعلية وحركة المؤشرات الحية عبر منصة جوجل، اضغط على الزر أدناه:</p>\n                \n                <a class=\"btn-link\" href=\"https://datastudio.google.com/embed/reporting/b177eb94-874c-473b-a912-8086632123fe/page/It22F\" target=\"_blank\">📊 اضغط هنا لفتح لوحة البيانات الحية</a>\n            </div>\n        </div>\n\n        <div class=\"footer\">\n            هذا البريد تم توليده تلقائياً بواسطة نظام دعم القرار الذكي الخاص بك.\n        </div>\n    </div>\n</body>\n</html>",
+        "options": {
+          "appendAttribution": false
+        }
+      },
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.2,
+      "position": [
+        688,
+        3488
+      ],
+      "id": "788bb1df-3e38-437e-90c3-d9611d274fc1",
+      "name": "Send a message5",
+      "webhookId": "b5340098-a7fb-42d3-baaa-95a5b2059ecd",
+      "credentials": {
+        "gmailOAuth2": {
+          "id": "9NcBOjKo4wAbWWGE",
+          "name": "Gmail account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "url": "https://datastudio.google.com/embed/reporting/b177eb94-874c-473b-a912-8086632123fe/page/It22F",
+        "options": {
+          "response": {
+            "response": {
+              "responseFormat": "file"
+            }
+          }
+        }
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        432,
+        3280
+      ],
+      "id": "64b85864-8946-4785-af02-e87677befe4a",
+      "name": "HTTP Request1"
+    },
+    {
+      "parameters": {
+        "operation": "convertUrl",
+        "url": "https://datastudio.google.com/embed/reporting/b177eb94-874c-473b-a912-8086632123fe/page/It22F",
+        "additionalOptions": {
+          "waitUntil": "networkidle"
+        }
+      },
+      "type": "n8n-nodes-pdfbolt.pdfBolt",
+      "typeVersion": 1,
+      "position": [
+        624,
+        3040
+      ],
+      "id": "1af5aa82-d9c7-4cc5-8cca-399ebec59780",
+      "name": "PDFBolt",
+      "credentials": {
+        "pdfBoltApi": {
+          "id": "q8CiJoGCueqjAnHG",
+          "name": "PDFBolt account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "html": "const fs = require('fs');\n\nasync function generatePdf() {\n    const requestData = {\n            \"html\": \"PCFET0NUWVBFIGh0bWw+CjxodG1sPgo8aGVhZD4KICAgIDxtZXRhIGNoYXJzZXQ9IlVURi04Ij4KICAgIDx0aXRsZT5TYW1wbGUgRG9jdW1lbnQ8L3RpdGxlPgogICAgPHN0eWxlPgogICAgICAgIGJvZHkgeyBmb250LWZhbWlseTogQXJpYWwsIHNhbnMtc2VyaWY7IG1hcmdpbjogNDBweDsgfQogICAgICAgIGgxIHsgY29sb3I6ICMzMzM7IH0KICAgICAgICAuaGlnaGxpZ2h0IHsgYmFja2dyb3VuZC1jb2xvcjogI0UxRjVGRTsgcGFkZGluZzogMTBweCAxNXB4OyBib3JkZXItcmFkaXVzOiA4cHg7fQogICAgPC9zdHlsZT4KPC9oZWFkPgo8Ym9keT4KICAgIDxoMT5TYW1wbGUgUERGIERvY3VtZW50PC9oMT4KICAgIDxwPlRoaXMgaXMgYSBzYW1wbGUgSFRNTCBjb250ZW50IHRoYXQgd2lsbCBiZSBjb252ZXJ0ZWQgdG8gUERGLjwvcD4KICAgIDxkaXYgY2xhc3M9ImhpZ2hsaWdodCI+CiAgICAgICAgPHA+WW91IGNhbiBtb2RpZnkgdGhpcyBIVE1MIGNvbnRlbnQgaW4gdGhlIGVkaXRvciB0byB0ZXN0IGRpZmZlcmVudCBsYXlvdXRzIGFuZCBzdHlsZXMuPC9wPgogICAgPC9kaXY+CiAgICA8cD5Mb3JlbSBpcHN1bSBkb2xvciBzaXQgYW1ldCwgY29uc2VjdGV0dXIgYWRpcGlzY2luZyBlbGl0LiBTZWQgZG8gZWl1c21vZCB0ZW1wb3IgaW5jaWRpZHVudCB1dCBsYWJvcmUgZXQgZG9sb3JlIG1hZ25hIGFsaXF1YS48L3A+CjwvYm9keT4KPC9odG1sPg==\",\n            \"printBackground\": true,\n            \"waitUntil\": \"networkidle\"\n        };\n\n    const response = await fetch(\"https://api.pdfbolt.com/v1/direct\", {\n        method: \"POST\",\n        headers: {\n                \"API-KEY\": \"1fc82d85-fd79-4e06-b266-c78dcc9cfd10\",\n                \"Content-Type\": \"application/json\"\n            },\n        body: JSON.stringify(requestData)\n    });\n\n    if (!response.ok) {\n        const errorText = await response.text();\n        throw new Error(`HTTP ${response.status} - ${errorText}`);\n    }\n\n    const pdfBuffer = await response.arrayBuffer();\n    fs.writeFileSync(\"pdfbolt_example.pdf\", Buffer.from(pdfBuffer));\n    console.log('PDF generated successfully');\n}\n\ngeneratePdf().catch(console.error);",
+        "additionalOptions": {}
+      },
+      "type": "n8n-nodes-pdfbolt.pdfBolt",
+      "typeVersion": 1,
+      "position": [
+        816,
+        3072
+      ],
+      "id": "55eed478-a420-4564-83cb-fb13e580fa74",
+      "name": "PDFBolt1",
+      "credentials": {
+        "pdfBoltApi": {
+          "id": "q8CiJoGCueqjAnHG",
+          "name": "PDFBolt account"
         }
       }
     }
@@ -1596,7 +1834,7 @@
       "main": [
         [
           {
-            "node": "AI Agent",
+            "node": "Basic LLM Chain",
             "type": "main",
             "index": 0
           }
@@ -1607,41 +1845,8 @@
       "ai_languageModel": [
         [
           {
-            "node": "AI Agent",
+            "node": "Basic LLM Chain",
             "type": "ai_languageModel",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Metadata & Context Get Row": {
-      "ai_tool": [
-        [
-          {
-            "node": "AI Agent",
-            "type": "ai_tool",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Metadata & Context Get Row1": {
-      "ai_tool": [
-        [
-          {
-            "node": "AI Agent",
-            "type": "ai_tool",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "AI Agent": {
-      "main": [
-        [
-          {
-            "node": "Switch",
-            "type": "main",
             "index": 0
           }
         ]
@@ -1651,7 +1856,7 @@
       "ai_outputParser": [
         [
           {
-            "node": "AI Agent",
+            "node": "Basic LLM Chain",
             "type": "ai_outputParser",
             "index": 0
           }
@@ -1733,6 +1938,121 @@
           }
         ]
       ]
+    },
+    "Basic LLM Chain": {
+      "main": [
+        [
+          {
+            "node": "Switch",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Google Sheets Trigger1": {
+      "main": [
+        [
+          {
+            "node": "Basic LLM Chain1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Google Gemini Chat Model1": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "Basic LLM Chain1",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Structured Output Parser2": {
+      "ai_outputParser": [
+        [
+          {
+            "node": "Basic LLM Chain1",
+            "type": "ai_outputParser",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Basic LLM Chain1": {
+      "main": [
+        [
+          {
+            "node": "Switch2",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Switch2": {
+      "main": [
+        [
+          {
+            "node": "HTTP Request1",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "HTTP Request",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Send a message4": {
+      "main": [
+        []
+      ]
+    },
+    "Send a message5": {
+      "main": [
+        []
+      ]
+    },
+    "HTTP Request": {
+      "main": [
+        [
+          {
+            "node": "Send a message5",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "HTTP Request1": {
+      "main": [
+        [
+          {
+            "node": "Send a message4",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "PDFBolt1": {
+      "main": [
+        []
+      ]
+    },
+    "PDFBolt": {
+      "main": [
+        []
+      ]
     }
   },
   "active": false,
@@ -1740,7 +2060,7 @@
     "executionOrder": "v1",
     "binaryMode": "separate"
   },
-  "versionId": "476a488a-e057-4286-99ab-92c9432f36ea",
+  "versionId": "5c134af0-8b50-4483-bb34-db5fed20d3ca",
   "meta": {
     "templateCredsSetupCompleted": true,
     "instanceId": "312b8e1c27ba1ae94b15ee40f5b475cef18128657bfd8917a13927efa9db76b9"
