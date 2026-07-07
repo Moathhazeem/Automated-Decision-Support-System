@@ -8,8 +8,8 @@
       "type": "@n8n/n8n-nodes-langchain.chatTrigger",
       "typeVersion": 1.4,
       "position": [
-        -576,
-        1488
+        -592,
+        1248
       ],
       "id": "1e206d48-2fde-496b-8cc3-d0ef04efd0c1",
       "name": "When chat message received",
@@ -22,8 +22,8 @@
       "type": "@n8n/n8n-nodes-langchain.memoryBufferWindow",
       "typeVersion": 1.4,
       "position": [
-        -192,
-        1680
+        -208,
+        1440
       ],
       "id": "42d9de0f-d4ab-47a7-9ad1-4572d68bc4da",
       "name": "Simple Memory2"
@@ -36,8 +36,8 @@
       "type": "@n8n/n8n-nodes-langchain.lmChatGoogleGemini",
       "typeVersion": 1.1,
       "position": [
-        -368,
-        1664
+        -384,
+        1424
       ],
       "id": "d5eb5f72-0bcb-4259-a74c-efa365871642",
       "name": "Google Gemini Chat Model3",
@@ -56,8 +56,8 @@
       "type": "@n8n/n8n-nodes-langchain.lmChatGoogleGemini",
       "typeVersion": 1.1,
       "position": [
-        64,
-        1840
+        48,
+        1600
       ],
       "id": "92fa37f5-1c3b-40ed-819d-9dd2ae0c57d0",
       "name": "Google Gemini Chat Model4",
@@ -70,13 +70,13 @@
     },
     {
       "parameters": {
-        "jsCode": "// نقوم بجلب النص الخارج من نود الـ AI Agent\n// ملاحظة: تأكد من تغيير اسم الـ Node إذا كان مختلفاً لديك (مثلاً 'AI Agent')\nconst rawText = $input.item.json.output || $input.item.json.text;\nconst uniqueId = Math.floor(1000 + Math.random() * 9000);\ntry {\n    // تحويل النص إلى كائن JSON صالح\n    const parsedData = JSON.parse(rawText.trim());\n\n    // إرجاع البيانات بشكل منظم للنودز التالية\n    return [{\n        json: {\n          id: uniqueId,\n            action_type: parsedData.action_type || \"unclear\",\n            delete_search_term: parsedData.delete_search_term || null,\n            send_email: parsedData.send_email || false,\n            \n            // بيانات الجدول (إذا كانت عملية تحليل)\n            decision: parsedData.decision_data ? parsedData.decision_data.decision : null,\n            classification:parsedData.decision_data ?\n              parsedData.decision_data.decision: null,\n            time: parsedData.decision_data ? parsedData.decision_data.time : null,\n            priority: parsedData.decision_data ? parsedData.decision_data.priority : null,\n            description: parsedData.decision_data ? parsedData.decision_data.description : null\n        }\n    }];\n\n} catch (error) {\n    // في حال حدوث خطأ غير متوقع في التحليل، يتم تمرير الخطأ لتجنب توقف الـ Workflow\n    return [{\n        json: {\n            action_type: \"unclear\",\n            error: \"فشل في تحليل الـ JSON: \" + error.message,\n            raw_output: rawText\n        }\n    }];\n}"
+        "jsCode": "const inputData = $input.item.json.output || $input.item.json.text || \"\";\n\n// --- كود حساب عدد الأسطر التلقائي ---\nlet rowCount = 0;\ntry {\n    const sheetsData = $(\"Get Row(s) in sheet5\").all();\n    rowCount = sheetsData.length;\n} catch (e) {\n    rowCount = 5; \n}\nconst uniqueId = rowCount + 1; \n\nconst today = new Date();\nconst currentDate = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;\n\nlet parsedData = {};\n\ntry {\n    if (typeof inputData === 'object' && inputData !== null) {\n        parsedData = inputData;\n    } else if (typeof inputData === 'string') {\n        let cleanText = inputData.replace(/```json/g, '').replace(/```/g, '').trim();\n        parsedData = JSON.parse(cleanText);\n    }\n\n    let emailStatus = parsedData.send_email === true || parsedData.send_email === \"true\";\n    const currentAction = parsedData.action_type || \"unclear\";\n\n    let finalClassification = parsedData.Classification || parsedData.classification || (parsedData.decision_data ? (parsedData.decision_data.Classification || parsedData.decision_data.classification) : null);\n    if (!finalClassification && currentAction === \"analyze\") {\n        const fullTextContext = (parsedData.decision || \"\") + \" \" + (parsedData.description || \"\");\n        finalClassification = (fullTextContext.includes(\"LinkedIn\") || fullTextContext.includes(\"مشروع\")) ? \"تطوير مهني\" : \"عام\";\n    }\n\n    let finalTime = parsedData.time || (parsedData.decision_data ? parsedData.decision_data.time : null) || currentDate;\n\n    return [{\n        json: {\n            id: uniqueId,\n            action_type: currentAction,\n            delete_search_term: parsedData.delete_search_term || null,\n            send_email: emailStatus,\n            decision_id: parsedData.decision_id || null,\n            success_rate: parsedData.success_rate || null,\n            decision: parsedData.decision_data ? parsedData.decision_data.decision : (parsedData.decision || null),\n            classification: finalClassification,\n            time: finalTime, \n            priority: parsedData.decision_data ? parsedData.decision_data.priority : (parsedData.priority || null),\n            description: parsedData.decision_data ? parsedData.decision_data.description : (parsedData.description || null),\n            // تمرير حقول الشيت الثانية الجديدة\n            best_case: parsedData.best_case || null,\n            worst_case: parsedData.worst_case || null,\n            mitigation_plan: parsedData.mitigation_plan || null\n        }\n    }];\n} catch (error) {\n    return [{ json: { id: uniqueId, action_type: \"unclear\", send_email: false, time: currentDate, error: \"فشل التحليل: \" + error.message } }];\n}"
       },
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        208,
-        1488
+        192,
+        1248
       ],
       "id": "cc2b10fd-654e-4fa5-baaa-87d38cb3bf2f",
       "name": "Code in JavaScript4"
@@ -102,8 +102,8 @@
       "type": "n8n-nodes-base.googleSheetsTool",
       "typeVersion": 4.7,
       "position": [
-        -64,
-        1680
+        -32,
+        1456
       ],
       "id": "a77ba4c8-1c5d-452d-9666-2459c483fe82",
       "name": "Metadata & Context Get Row2",
@@ -118,14 +118,14 @@
       "parameters": {
         "hasOutputParser": true,
         "options": {
-          "systemMessage": "=أنت محرك تحليل نية ضمن نظام دعم قرارات آلي (Automated Decision Support System).\nمهمتك الوحيدة هي تحليل طلب المستخدم وإخراج كائن JSON خام وصالح للتحليل (parseable) مباشرة، بدون أي نص تفسيري خارج الكائن، وبدون استخدام علامات الاقتباس البرمجية الخاصة بالـ Markdown (مثل ```).\n\n=====================================================================\nالبنية الأساسية للإخراج (JSON الهيكل المتوقع):\n=====================================================================\n{\n  \"action_type\": \"analyze\" | \"delete\" | \"unclear\" | \"update\",\n  \"delete_search_term\": \"<نص البحث أو اسم القرار المراد حذفه>\" | null,\n  \"decision_data\": {\n    \"decision\": \"<عنوان أو موضوع القرار>\",\n    \"classification\":\"<تصنيف القرار>\",\n    \"time\": \"<التاريخ بصيغة YYYY-MM-DD فقط بناءً على تاريخ اليوم 2026-06-28 أو التاريخ المذكور>\",\n    \"priority\": \"عالية\" | \"متوسطة\" | \"قليلة\",\n    \"description\": \"<وصف عام وموجز للقرار وتحليله>\"\n  } | null,\n  \"send_email\": true | false\n}\n\n=====================================================================\nقواعد المعالجة الحاسمة:\n=====================================================================\n1. حقل إرسال الإيميل (send_email):\n   - يتم تعيينه إلى true فوراً وبشكل صريح (Boolean) إذا طلب المستخدم إرسال المخرجات أو تأكيد الحذف إلى البريد الإلكتروني، أو عبّر عن ذلك بأي صيغة (مثل: \"ابعثلي ايميل\"، \"أرسله لبريدي\"، \"نعم ارسله\").\n   - يتم تعيينه إلى false في حال غياب أي ذكر للإيميل.\n\n2. حقل البيانات (decision_data):\n   - إذا كانت العملية \"تحليل قرار\" (action_type = \"analyze\")، قم بملء الحقول الأربعة بناءً على الأعمدة الموضحة في جدول البيانات:\n     * decision: موضوع القرار الأساسي.\n     * classification: تنصيف القرار بناء على تصنيف عالمي\n     * time: استخرج أو استنتج تاريخ اليوم الحالي بالصيغة المحددة (مثال: 2026-06-28).\n     * priority: حدد الأولوية بدقة من بين الخيارات الثلاثة فقط (عالية، متوسطة، قليلة).\n     * description: اكتب وصفاً عاماً وتحليلياً للقرار.\n   - إذا كانت العملية \"حذف\" (action_type = \"delete\")، اجعل قيمة decision_data بالكامل: null.\n\n3. طلبات الحذف (Delete Intents):\n   - عند طلب حذف قرار معين، اجعل action_type = \"delete\".\n   - استخرج الكلمة المفتاحية أو اسم القرار المراد حذفه وضعه في حقل delete_search_term.\n\n4. الـ action_type:\n   - اختر \"analyze\" إذا كان المستخدم يطرح قراراً جديداً بالكامل لتحليله.\n   - اختر \"delete\" إذا طلب المستخدم حذف قرار سابق.\n   - اختر \"update\" إذا طلب المستخدم تعديل أو تغيير تفاصيل قرار موجود مسبقاً (مثل: \"عدل أولوية قرار الرياضة\"، \"غير وصف القرار الفلاني\").\n\n5. عند التعديل (update):\n   - ضع اسم القرار المراد تعديله في حقل delete_search_term (ليتم استخدامه للبحث عن الصف في الجدول).\n   - ضع القيم الجديدة التي طلب المستخدم تغييرها في حقولها المناسبة (مثل priority أو description).\n   - الحقول التي لم يطلب المستخدم تعديلها، اترك قيمتها كما هي أو فارغة (null).\n\n=====================================================================\nنص المستخدم الحالي المعني بالتحليل:"
+          "systemMessage": "=أنت محرك تحليل نية ذكي وخبير استراتيجي مخصص لإدارة المخاطر ضمن نظام دعم قرارات آلي (Automated Decision Support System - ADSS).\nمهمتك الأساسية هي تحليل طلب المستخدم بدقة وتوجيهه، ثم إخراج البيانات بصيغة JSON نظيفة، صالحة للتحليل (parseable) مباشرة، وبدون أي نصوص تفسيرية خارج كائن الـ JSON.\n\n=====================================================================\nقواعد تحديد نوع العملية (action_type):\n=====================================================================\n1. \"analyze\": إذا كان المستخدم يطرح قراراً جديداً بالكامل لتحليله وتقييمه.\n2. \"delete\": إذا طلب المستخدم حذف قرار سابق.\n3. \"update\": إذا طلب المستخدم تعديل تفاصيل قرار موجود مسبقاً.\n4. \"update_success\": إذا قام المستخدم بالرد لتحديث تقييم نجاح قرار قديم (مثال: \"تحديث القرار رقم 5 والتقييم 8\").\n5. \"unclear\": إذا كان نص المستخدم غير مفهوم.\n\n=====================================================================\nقواعد المعالجة وصياغة حقول التحليل الاستراتيجي (تحليل المخاطر):\n=====================================================================\nعند تحليل قرار جديد (action_type = \"analyze\")، يجب أن تلعب دور \"محامي الشيطان\" (Devil's Advocate) وتقوم بفصل التحليل في الحقول التالية إجبارياً وباللغة العربية:\n1. decision: موضوع القرار الأساسي بشكل موجز ومباشر.\n2. Classification: تصنيف القرار بناءً على تقييم عالمي (مثال: قرار أكاديمي، تطوير مهني).\n3. priority: حدد الأولوية بدقة: [\"عالية\", \"متوسطة\", \"قليلة\"].\n4. description: وصف عام وموجز جداً للقرار وفائدته المباشرة.\n5. best_case: (أفضل سيناريو محتمل) - ماذا سيحدث لو نجح القرار بنسبة 100%؟\n6. worst_case: (أسوأ سيناريو محتمل) - ما هي أكبر المخاطر والتهديدات؟ حذر المستخدم بصراحة (مثال: \"احذر من...\").\n7. mitigation_plan: (خطة الطوارئ وتقليل المخاطر) - الخطوات الوقائية الصارمة لتجنب أسوأ سيناريو.\n\nعند تحديث تقييم نجاح قرار قديم (action_type = \"update_success\"):\n- استخرج رقم معرف القرار وضعه في حقل `decision_id` ورقم التقييم في حقل `success_rate`. واجعل باقي الحقول null.\n\n=====================================================================\nالهيكل المتوقع للإخراج (JSON Schema):\n=====================================================================\n{\n  \"action_type\": \"analyze\" | \"delete\" | \"update\" | \"update_success\" | \"unclear\",\n  \"delete_search_term\": \"نص البحث\" | null,\n  \"decision_id\": 5 | null,\n  \"success_rate\": 8 | null,\n  \"decision\": \"عنوان القرار\" | null,\n  \"Classification\": \"تصنيف القرار\" | null,\n  \"priority\": \"عالية\" | \"متوسطة\" | \"قليلة\" | null,\n  \"description\": \"الوصف العام المختصر\" | null,\n  \"best_case\": \"تحليل أفضل سيناريو\" | null,\n  \"worst_case\": \"تحليل أسوأ سيناريو\" | null,\n  \"mitigation_plan\": \"خطة الطوارئ المقترحة\" | null,\n  \"send_email\": true | false\n}"
         }
       },
       "type": "@n8n/n8n-nodes-langchain.agent",
       "typeVersion": 3.1,
       "position": [
-        -176,
-        1488
+        -192,
+        1248
       ],
       "id": "1d1fec3a-0b1d-4cce-8b4e-c1a5d89ce1d1",
       "name": "AI main",
@@ -134,14 +134,14 @@
     {
       "parameters": {
         "schemaType": "manual",
-        "inputSchema": "{\n  \"type\": \"object\",\n  \"properties\": {\n    \"action_type\": {\n  \"type\": \"string\",\n  \"enum\": [\"analyze\", \"delete\", \"update\", \"unclear\"],\n  \"description\": \"نوع العملية: تحليل قرار جديد، حذف قرار، تعديل قرار موجود، أو غير واضح.\"\n  },\n    \"delete_search_term\": {\n      \"type\": \"string\",\n      \"description\": \"اسم أو موضوع القرار المراد حذفه في حال كانت العملية delete، وإلا اتركها فارغة.\"\n    },\n    \"decision\": {\n      \"type\": \"string\",\n      \"description\": \"موضوع القرار الأساسي (في حال عملية analyze).\"\n    },\n    \"Classification\": {\n      \"type\": \"string\",\n      \"description\": \"اسم تصنيف بناء على تقييم عالمي\"\n    },\n    \"time\": {\n      \"type\": \"string\",\n      \"description\": \"التاريخ الحالي بصيغة YYYY-MM-DD فقط (تاريخ اليوم هو 2026-06-28).\"\n    },\n    \"priority\": {\n      \"type\": \"string\",\n      \"enum\": [\"عالية\", \"متوسطة\", \"قليلة\"],\n      \"description\": \"درجة أولوية القرار بناءً على معطيات المستخدم.\"\n    },\n    \"description\": {\n      \"type\": \"string\",\n      \"description\": \"وصف عام وموجز للقرار مع تحليل سريع ومباشر له.\"\n    },\n    \"send_email\": {\n      \"type\": \"boolean\",\n      \"description\": \"يتم تعيينها كـ true إذا طلب المستخدم صراحة أو لمح برغبته في إرسال إيميل، وإلا false.\"\n    }\n  },\n  \"required\": [\"action_type\", \"send_email\"]\n}",
+        "inputSchema": "{\n  \"type\": \"object\",\n  \"properties\": {\n    \"action_type\": {\n      \"type\": \"string\",\n      \"enum\": [\"analyze\", \"delete\", \"update\", \"update_success\", \"unclear\"],\n      \"description\": \"نوع العملية الحالية.\"\n    },\n    \"delete_search_term\": { \"type\": \"string\", \"description\": \"اسم القرار المراد حذفه.\" },\n    \"decision_id\": { \"type\": \"integer\", \"description\": \"رقم معرف القرار للـ update_success.\" },\n    \"success_rate\": { \"type\": \"integer\", \"description\": \"تقييم النجاح من 1 إلى 10.\" },\n    \"decision\": { \"type\": \"string\", \"description\": \"موضوع القرار الأساسي.\" },\n    \"Classification\": { \"type\": \"string\", \"description\": \"تصنيف القرار.\" },\n    \"time\": { \"type\": \"string\", \"description\": \"التاريخ الحالي بصيغة YYYY-MM-DD.\" },\n    \"priority\": { \"type\": \"string\", \"enum\": [\"عالية\", \"متوسطة\", \"قليلة\"] },\n    \"description\": { \"type\": \"string\", \"description\": \"الوصف العام والموجز.\" },\n    \"best_case\": { \"type\": \"string\", \"description\": \"تحليل أفضل سيناريو محتمل للقرار.\" },\n    \"worst_case\": { \"type\": \"string\", \"description\": \"تحليل أسوأ سيناريو محتمل (محامي الشيطان).\" },\n    \"mitigation_plan\": { \"type\": \"string\", \"description\": \"خطة الطوارئ وتقليل المخاطر.\" },\n    \"send_email\": { \"type\": \"boolean\" }\n  },\n  \"required\": [\"action_type\", \"send_email\"]\n}",
         "autoFix": true
       },
       "type": "@n8n/n8n-nodes-langchain.outputParserStructured",
       "typeVersion": 1.3,
       "position": [
-        64,
-        1680
+        48,
+        1440
       ],
       "id": "608772d5-5ade-4fe8-bfc3-843a92f9fd6e",
       "name": "Structured Output Parser1",
@@ -167,12 +167,12 @@
         "columns": {
           "mappingMode": "defineBelow",
           "value": {
-            "Decision": "={{ $json.raw_output.decision }}",
-            "Time": "={{ $json.raw_output.time }}",
-            "Priority": "={{ $json.raw_output.priority }}",
-            "Description": "={{ $json.raw_output.description }}",
-            "ID ": "==ARRAYFORMULA(IF(ISBLANK(B2:B), \"\", ROW(B2:B)-1))",
-            "Classification": "={{ $json.raw_output.Classification }}"
+            "Decision": "={{ $json.decision }}",
+            "Time": "={{ $json.time }}",
+            "Priority": "={{ $json.priority }}",
+            "Description": "={{ $json.description }}",
+            "ID ": "={{ $json.id }}",
+            "Classification": "={{ $json.classification }}"
           },
           "matchingColumns": [
             "ID "
@@ -243,8 +243,8 @@
       "type": "n8n-nodes-base.googleSheets",
       "typeVersion": 4.7,
       "position": [
-        752,
-        1376
+        896,
+        1072
       ],
       "id": "aa42c611-b7a2-45ec-981b-6bcdebeebf51",
       "name": "Append or update row in sheet",
@@ -267,8 +267,8 @@
       "type": "n8n-nodes-base.gmail",
       "typeVersion": 2.2,
       "position": [
-        960,
-        1376
+        1120,
+        1072
       ],
       "id": "3fe230b7-1d4f-4250-bb79-df18c1f354f0",
       "name": "Send a message8",
@@ -292,8 +292,8 @@
       "type": "n8n-nodes-base.gmail",
       "typeVersion": 2.2,
       "position": [
-        1184,
-        1584
+        1296,
+        1264
       ],
       "id": "a43c5e35-ecac-4b6c-a046-9f52a914054c",
       "name": "Send a message9",
@@ -326,8 +326,8 @@
       "type": "n8n-nodes-base.googleSheets",
       "typeVersion": 4.7,
       "position": [
-        976,
-        1584
+        1104,
+        1264
       ],
       "id": "e5362ba9-57ba-43c7-bc7e-bf68a304eda8",
       "name": "Delete rows or columns from sheet5",
@@ -359,8 +359,8 @@
       "type": "n8n-nodes-base.googleSheets",
       "typeVersion": 4.7,
       "position": [
-        752,
-        1584
+        880,
+        1264
       ],
       "id": "ee7e5837-0353-4dfb-8bf8-ab3f92f0cdab",
       "name": "Get row(s) in sheet5",
@@ -385,11 +385,35 @@
                 },
                 "conditions": [
                   {
-                    "leftValue": "={{ $json.raw_output.action_type }}",
+                    "id": "b332b90c-231b-43c4-8147-2561ce25914a",
+                    "leftValue": "={{ $json.send_email }}",
+                    "rightValue": false,
+                    "operator": {
+                      "type": "boolean",
+                      "operation": "true",
+                      "singleValue": true
+                    }
+                  }
+                ],
+                "combinator": "and"
+              }
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 3
+                },
+                "conditions": [
+                  {
+                    "leftValue": "={{ $json.action_type === 'analyze' && $json.send_email === false }}",
                     "rightValue": "analyze",
                     "operator": {
-                      "type": "string",
-                      "operation": "equals"
+                      "type": "boolean",
+                      "operation": "true",
+                      "singleValue": true
                     },
                     "id": "80c7dc5e-2088-4596-a314-fac591a709c7"
                   }
@@ -408,12 +432,12 @@
                 "conditions": [
                   {
                     "id": "653aec25-ba0f-4381-9d83-f58def4511db",
-                    "leftValue": "={{ $json.raw_output.action_type }}",
+                    "leftValue": "={{ $json.action_type === 'delete' && $json.send_email === false }}",
                     "rightValue": "delete",
                     "operator": {
-                      "type": "string",
-                      "operation": "equals",
-                      "name": "filter.operator.equals"
+                      "type": "boolean",
+                      "operation": "true",
+                      "singleValue": true
                     }
                   }
                 ],
@@ -431,12 +455,34 @@
                 "conditions": [
                   {
                     "id": "bb916f15-8478-4500-ba23-89090eefa500",
-                    "leftValue": "={{ $json.raw_output.action_type }}",
+                    "leftValue": "={{ $json.action_type === 'update' && $json.send_email === false }}",
                     "rightValue": "update",
                     "operator": {
+                      "type": "boolean",
+                      "operation": "true",
+                      "singleValue": true
+                    }
+                  }
+                ],
+                "combinator": "and"
+              }
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 3
+                },
+                "conditions": [
+                  {
+                    "id": "7ccbccc5-06b1-443f-9378-3846f672ddf0",
+                    "leftValue": "={{ $json.action_type }}",
+                    "rightValue": "update_success",
+                    "operator": {
                       "type": "string",
-                      "operation": "equals",
-                      "name": "filter.operator.equals"
+                      "operation": "equals"
                     }
                   }
                 ],
@@ -450,8 +496,8 @@
       "type": "n8n-nodes-base.switch",
       "typeVersion": 3.4,
       "position": [
-        384,
-        1488
+        464,
+        1216
       ],
       "id": "2181e3f5-474b-4843-8a1f-160f0a1e398d",
       "name": "Switch1"
@@ -468,8 +514,8 @@
       "type": "n8n-nodes-base.gmail",
       "typeVersion": 2.2,
       "position": [
-        1168,
-        1808
+        1328,
+        1472
       ],
       "id": "4e5dafa5-b9c1-4b55-b47f-cf0ccb13a6f7",
       "name": "Send a message10",
@@ -502,8 +548,8 @@
       "type": "n8n-nodes-base.googleSheets",
       "typeVersion": 4.7,
       "position": [
-        736,
-        1808
+        880,
+        1472
       ],
       "id": "6ff949e5-0054-4d88-8c39-fd817967fb59",
       "name": "Get row(s) in sheet6",
@@ -624,8 +670,8 @@
       "type": "n8n-nodes-base.googleSheets",
       "typeVersion": 4.7,
       "position": [
-        960,
-        1808
+        1104,
+        1472
       ],
       "id": "898c9d4c-e62c-49aa-92f0-1e4cf4597f94",
       "name": "Update row in sheet",
@@ -1390,14 +1436,13 @@
           "cachedResultName": "Decisions Metrics",
           "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1PxNA1-3gD350MTcTtqd5uViJ8SO0uX-WwnIigjleUZw/edit#gid=1502700892"
         },
-        "event": "rowAdded",
         "options": {}
       },
       "type": "n8n-nodes-base.googleSheetsTrigger",
       "typeVersion": 1,
       "position": [
-        -448,
-        3360
+        -576,
+        3536
       ],
       "id": "17281f2e-d5f7-4828-9d32-e17e606fc599",
       "name": "Google Sheets Trigger1",
@@ -1416,7 +1461,7 @@
         "messages": {
           "messageValues": [
             {
-              "message": "=You are an expert in analyzing administrative and personal decisions. Your task is to compare expectations with reality and provide a strict numerical evaluation across four key criteria based on the provided decision text.\n\nFor every decision, you must generate a score from 1 to 10 for each of the following metrics:\n1. financial_score: Financial efficiency, cost-effectiveness, or budget commitment.\n2. time_score: Adherence to schedules, deadlines, and time efficiency.\n3. discipline_score: Execution discipline, consistency, and avoidance of procrastination.\n4. mental_score: Psychological impact, stress level management, or mental clarity resulting from the decision.\n\nCRITICAL OUTPUT RULE:\nCalculate the 'overall_average' as the mathematical average of the four scores above.\nOutput ONLY raw JSON matching the required schema. Do not add markdown blocks or text around it."
+              "message": "=You are an expert in analyzing administrative and personal decisions. Your task is to compare expectations with reality and provide a strict numerical evaluation across four key criteria based on the provided decision text.\n\nFor every decision, you must generate a score from 1 to 10 for each of the following metrics:\n1. financial_score: Financial efficiency, cost-effectiveness, or budget commitment.\n2. time_score: Adherence to schedules, deadlines, and time efficiency.\n3. discipline_score: Execution discipline, consistency, and avoidance of procrastination.\n4. mental_score: Psychological impact, stress level management, or mental clarity resulting from the decision.\n\nCRITICAL OUTPUT RULE:\nCalculate the 'overall_average' as the mathematical average of the four scores above.\nOutput ONLY raw JSON matching the required schema. Do not add markdown blocks or text around it.\n"
             }
           ]
         },
@@ -1425,8 +1470,8 @@
       "type": "@n8n/n8n-nodes-langchain.chainLlm",
       "typeVersion": 1.9,
       "position": [
-        -208,
-        3360
+        -224,
+        3536
       ],
       "id": "9b4b1967-e3e3-4dd1-a053-80c229e132a5",
       "name": "Basic LLM Chain1"
@@ -1439,8 +1484,8 @@
       "type": "@n8n/n8n-nodes-langchain.lmChatGoogleGemini",
       "typeVersion": 1.1,
       "position": [
-        -208,
-        3568
+        -224,
+        3744
       ],
       "id": "e1997dae-21a6-4122-834d-2f9da34cb4ee",
       "name": "Google Gemini Chat Model1",
@@ -1454,13 +1499,13 @@
     {
       "parameters": {
         "schemaType": "manual",
-        "inputSchema": "{\n  \"type\": \"object\",\n  \"properties\": {\n    \"financial_score\": { \"type\": \"number\" },\n    \"time_score\": { \"type\": \"number\" },\n    \"discipline_score\": { \"type\": \"number\" },\n    \"mental_score\": { \"type\": \"number\" },\n    \"overall_average\": { \"type\": \"number\" }\n  }\n}"
+        "inputSchema": "{\n  \"type\": \"object\",\n  \"properties\": {\n    \"financial_score\": { \"type\": \"number\" },\n    \"time_score\": { \"type\": \"number\" },\n    \"discipline_score\": { \"type\": \"number\" },\n    \"mental_score\": { \"type\": \"number\" },\n    \"overall_average\": { \"type\": \"number\" },\n    \"Send_AI\":{\"type\":\"boolean\"}\n  }\n}"
       },
       "type": "@n8n/n8n-nodes-langchain.outputParserStructured",
       "typeVersion": 1.3,
       "position": [
-        -64,
-        3568
+        -80,
+        3744
       ],
       "id": "d257cd22-31f2-426c-80fc-8202e7d118af",
       "name": "Structured Output Parser2"
@@ -1479,8 +1524,8 @@
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.4,
       "position": [
-        432,
-        3488
+        320,
+        3664
       ],
       "id": "d3b12054-1207-43b1-988d-92f075bc2a13",
       "name": "HTTP Request"
@@ -1540,8 +1585,8 @@
       "type": "n8n-nodes-base.switch",
       "typeVersion": 3.4,
       "position": [
-        208,
-        3360
+        96,
+        3536
       ],
       "id": "1161c112-525b-4f9f-9454-0f3c25991283",
       "name": "Switch2"
@@ -1558,8 +1603,8 @@
       "type": "n8n-nodes-base.gmail",
       "typeVersion": 2.2,
       "position": [
-        688,
-        3280
+        576,
+        3456
       ],
       "id": "7b54a939-f8ae-455d-935e-3f631ed95667",
       "name": "Send a message4",
@@ -1583,8 +1628,8 @@
       "type": "n8n-nodes-base.gmail",
       "typeVersion": 2.2,
       "position": [
-        688,
-        3488
+        576,
+        3664
       ],
       "id": "788bb1df-3e38-437e-90c3-d9611d274fc1",
       "name": "Send a message5",
@@ -1610,52 +1655,981 @@
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.4,
       "position": [
-        432,
-        3280
+        320,
+        3456
       ],
       "id": "64b85864-8946-4785-af02-e87677befe4a",
       "name": "HTTP Request1"
     },
     {
       "parameters": {
-        "operation": "convertUrl",
-        "url": "https://datastudio.google.com/embed/reporting/b177eb94-874c-473b-a912-8086632123fe/page/It22F",
-        "additionalOptions": {
-          "waitUntil": "networkidle"
-        }
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose",
+            "version": 3
+          },
+          "conditions": [
+            {
+              "id": "f0c296e9-088d-497b-a7b7-570f35d6032d",
+              "leftValue": "={{ $json['Send Email'] }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "looseTypeValidation": true,
+        "options": {}
       },
-      "type": "n8n-nodes-pdfbolt.pdfBolt",
-      "typeVersion": 1,
+      "type": "n8n-nodes-base.filter",
+      "typeVersion": 2.3,
       "position": [
-        624,
-        3040
+        -400,
+        3536
       ],
-      "id": "1af5aa82-d9c7-4cc5-8cca-399ebec59780",
-      "name": "PDFBolt",
+      "id": "a480eff9-a027-4725-9913-4f92af684dc9",
+      "name": "Filter"
+    },
+    {
+      "parameters": {
+        "operation": "update",
+        "documentId": {
+          "__rl": true,
+          "value": "1PxNA1-3gD350MTcTtqd5uViJ8SO0uX-WwnIigjleUZw",
+          "mode": "list",
+          "cachedResultName": "Automated Decision Support System",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1PxNA1-3gD350MTcTtqd5uViJ8SO0uX-WwnIigjleUZw/edit?usp=drivesdk"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": 1502700892,
+          "mode": "list",
+          "cachedResultName": "Decisions Metrics",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1PxNA1-3gD350MTcTtqd5uViJ8SO0uX-WwnIigjleUZw/edit#gid=1502700892"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "Send Email": "={{ $json.send_email }}",
+            "Decision Name": "={{ $json.decision }}"
+          },
+          "matchingColumns": [
+            "Decision Name"
+          ],
+          "schema": [
+            {
+              "id": "ID",
+              "displayName": "ID",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": true
+            },
+            {
+              "id": "Decision Name",
+              "displayName": "Decision Name",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "Date",
+              "displayName": "Date",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": true
+            },
+            {
+              "id": "Financial Score",
+              "displayName": "Financial Score",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": true
+            },
+            {
+              "id": "Time Management Score",
+              "displayName": "Time Management Score",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": true
+            },
+            {
+              "id": "Execution Discipline",
+              "displayName": "Execution Discipline",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": true
+            },
+            {
+              "id": "Emotional/Mental Score",
+              "displayName": "Emotional/Mental Score",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": true
+            },
+            {
+              "id": "Overall Average",
+              "displayName": "Overall Average",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": true
+            },
+            {
+              "id": "Send Email",
+              "displayName": "Send Email",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "row_number",
+              "displayName": "row_number",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "number",
+              "canBeUsedToMatch": true,
+              "readOnly": true,
+              "removed": true
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        880,
+        752
+      ],
+      "id": "b85ec40e-e8c3-4363-bf15-4586be377d03",
+      "name": "Update row in sheet1",
       "credentials": {
-        "pdfBoltApi": {
-          "id": "q8CiJoGCueqjAnHG",
-          "name": "PDFBolt account"
+        "googleSheetsOAuth2Api": {
+          "id": "qPcYFvcEFGVnuJDH",
+          "name": "Google Sheets account 2"
         }
       }
     },
     {
       "parameters": {
-        "html": "const fs = require('fs');\n\nasync function generatePdf() {\n    const requestData = {\n            \"html\": \"PCFET0NUWVBFIGh0bWw+CjxodG1sPgo8aGVhZD4KICAgIDxtZXRhIGNoYXJzZXQ9IlVURi04Ij4KICAgIDx0aXRsZT5TYW1wbGUgRG9jdW1lbnQ8L3RpdGxlPgogICAgPHN0eWxlPgogICAgICAgIGJvZHkgeyBmb250LWZhbWlseTogQXJpYWwsIHNhbnMtc2VyaWY7IG1hcmdpbjogNDBweDsgfQogICAgICAgIGgxIHsgY29sb3I6ICMzMzM7IH0KICAgICAgICAuaGlnaGxpZ2h0IHsgYmFja2dyb3VuZC1jb2xvcjogI0UxRjVGRTsgcGFkZGluZzogMTBweCAxNXB4OyBib3JkZXItcmFkaXVzOiA4cHg7fQogICAgPC9zdHlsZT4KPC9oZWFkPgo8Ym9keT4KICAgIDxoMT5TYW1wbGUgUERGIERvY3VtZW50PC9oMT4KICAgIDxwPlRoaXMgaXMgYSBzYW1wbGUgSFRNTCBjb250ZW50IHRoYXQgd2lsbCBiZSBjb252ZXJ0ZWQgdG8gUERGLjwvcD4KICAgIDxkaXYgY2xhc3M9ImhpZ2hsaWdodCI+CiAgICAgICAgPHA+WW91IGNhbiBtb2RpZnkgdGhpcyBIVE1MIGNvbnRlbnQgaW4gdGhlIGVkaXRvciB0byB0ZXN0IGRpZmZlcmVudCBsYXlvdXRzIGFuZCBzdHlsZXMuPC9wPgogICAgPC9kaXY+CiAgICA8cD5Mb3JlbSBpcHN1bSBkb2xvciBzaXQgYW1ldCwgY29uc2VjdGV0dXIgYWRpcGlzY2luZyBlbGl0LiBTZWQgZG8gZWl1c21vZCB0ZW1wb3IgaW5jaWRpZHVudCB1dCBsYWJvcmUgZXQgZG9sb3JlIG1hZ25hIGFsaXF1YS48L3A+CjwvYm9keT4KPC9odG1sPg==\",\n            \"printBackground\": true,\n            \"waitUntil\": \"networkidle\"\n        };\n\n    const response = await fetch(\"https://api.pdfbolt.com/v1/direct\", {\n        method: \"POST\",\n        headers: {\n                \"API-KEY\": \"1fc82d85-fd79-4e06-b266-c78dcc9cfd10\",\n                \"Content-Type\": \"application/json\"\n            },\n        body: JSON.stringify(requestData)\n    });\n\n    if (!response.ok) {\n        const errorText = await response.text();\n        throw new Error(`HTTP ${response.status} - ${errorText}`);\n    }\n\n    const pdfBuffer = await response.arrayBuffer();\n    fs.writeFileSync(\"pdfbolt_example.pdf\", Buffer.from(pdfBuffer));\n    console.log('PDF generated successfully');\n}\n\ngeneratePdf().catch(console.error);",
-        "additionalOptions": {}
+        "operation": "update",
+        "documentId": {
+          "__rl": true,
+          "value": "1PxNA1-3gD350MTcTtqd5uViJ8SO0uX-WwnIigjleUZw",
+          "mode": "list",
+          "cachedResultName": "Automated Decision Support System",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1PxNA1-3gD350MTcTtqd5uViJ8SO0uX-WwnIigjleUZw/edit?usp=drivesdk"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": 1502700892,
+          "mode": "list",
+          "cachedResultName": "Decisions Metrics",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1PxNA1-3gD350MTcTtqd5uViJ8SO0uX-WwnIigjleUZw/edit#gid=1502700892"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "Send Email": "=false",
+            "Decision Name": "={{ $('Google Sheets Trigger1').item.json['Decision Name'] }}"
+          },
+          "matchingColumns": [
+            "Decision Name"
+          ],
+          "schema": [
+            {
+              "id": "ID",
+              "displayName": "ID",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": true
+            },
+            {
+              "id": "Decision Name",
+              "displayName": "Decision Name",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "Date",
+              "displayName": "Date",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": true
+            },
+            {
+              "id": "Financial Score",
+              "displayName": "Financial Score",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": true
+            },
+            {
+              "id": "Time Management Score",
+              "displayName": "Time Management Score",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": true
+            },
+            {
+              "id": "Execution Discipline",
+              "displayName": "Execution Discipline",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": true
+            },
+            {
+              "id": "Emotional/Mental Score",
+              "displayName": "Emotional/Mental Score",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": true
+            },
+            {
+              "id": "Overall Average",
+              "displayName": "Overall Average",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": true
+            },
+            {
+              "id": "Send Email",
+              "displayName": "Send Email",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "row_number",
+              "displayName": "row_number",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "number",
+              "canBeUsedToMatch": true,
+              "readOnly": true,
+              "removed": true
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
       },
-      "type": "n8n-nodes-pdfbolt.pdfBolt",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        752,
+        3456
+      ],
+      "id": "b16248e5-d9e6-4ca7-86db-149769c26ccc",
+      "name": "Update row in sheet3",
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "qPcYFvcEFGVnuJDH",
+          "name": "Google Sheets account 2"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "update",
+        "documentId": {
+          "__rl": true,
+          "value": "1PxNA1-3gD350MTcTtqd5uViJ8SO0uX-WwnIigjleUZw",
+          "mode": "list",
+          "cachedResultName": "Automated Decision Support System",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1PxNA1-3gD350MTcTtqd5uViJ8SO0uX-WwnIigjleUZw/edit?usp=drivesdk"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": 1502700892,
+          "mode": "list",
+          "cachedResultName": "Decisions Metrics",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1PxNA1-3gD350MTcTtqd5uViJ8SO0uX-WwnIigjleUZw/edit#gid=1502700892"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "Send Email": "=false",
+            "Decision Name": "={{ $('Google Sheets Trigger1').item.json['Decision Name'] }}"
+          },
+          "matchingColumns": [
+            "Decision Name"
+          ],
+          "schema": [
+            {
+              "id": "ID",
+              "displayName": "ID",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": true
+            },
+            {
+              "id": "Decision Name",
+              "displayName": "Decision Name",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "Date",
+              "displayName": "Date",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": true
+            },
+            {
+              "id": "Financial Score",
+              "displayName": "Financial Score",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": true
+            },
+            {
+              "id": "Time Management Score",
+              "displayName": "Time Management Score",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": true
+            },
+            {
+              "id": "Execution Discipline",
+              "displayName": "Execution Discipline",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": true
+            },
+            {
+              "id": "Emotional/Mental Score",
+              "displayName": "Emotional/Mental Score",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": true
+            },
+            {
+              "id": "Overall Average",
+              "displayName": "Overall Average",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": true
+            },
+            {
+              "id": "Send Email",
+              "displayName": "Send Email",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "row_number",
+              "displayName": "row_number",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "number",
+              "canBeUsedToMatch": true,
+              "readOnly": true,
+              "removed": true
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        752,
+        3664
+      ],
+      "id": "2c5865f2-aced-4acb-8b44-dde29ebc564a",
+      "name": "Update row in sheet4",
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "qPcYFvcEFGVnuJDH",
+          "name": "Google Sheets account 2"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "query": "={{ /*n8n-auto-generated-fromAI-override*/ $fromAI('Query', ``, 'string') }}",
+        "options": {}
+      },
+      "type": "@tavily/n8n-nodes-tavily.tavilyTool",
       "typeVersion": 1,
       "position": [
-        816,
-        3072
+        -128,
+        1488
       ],
-      "id": "55eed478-a420-4564-83cb-fb13e580fa74",
-      "name": "PDFBolt1",
+      "id": "8979e145-a656-4205-a20c-b772bb0f6bd8",
+      "name": "Search in Tavily",
       "credentials": {
-        "pdfBoltApi": {
-          "id": "q8CiJoGCueqjAnHG",
-          "name": "PDFBolt account"
+        "tavilyApi": {
+          "id": "rrwNOrE7278yTESS",
+          "name": "Tavily account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {}
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.3,
+      "position": [
+        -592,
+        2960
+      ],
+      "id": "2ee0a33d-5c67-43ef-a010-e12705279c9d",
+      "name": "Schedule Trigger"
+    },
+    {
+      "parameters": {
+        "documentId": {
+          "__rl": true,
+          "value": "1PxNA1-3gD350MTcTtqd5uViJ8SO0uX-WwnIigjleUZw",
+          "mode": "list",
+          "cachedResultName": "Automated Decision Support System",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1PxNA1-3gD350MTcTtqd5uViJ8SO0uX-WwnIigjleUZw/edit?usp=drivesdk"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": 1342687997,
+          "mode": "list",
+          "cachedResultName": "Proactive Follow-up",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1PxNA1-3gD350MTcTtqd5uViJ8SO0uX-WwnIigjleUZw/edit#gid=1342687997"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        -384,
+        2960
+      ],
+      "id": "efd5769e-8342-44f0-bbf7-621df9e17512",
+      "name": "Get row(s) in sheet",
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "qPcYFvcEFGVnuJDH",
+          "name": "Google Sheets account 2"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 3
+          },
+          "conditions": [
+            {
+              "id": "da9d745e-6776-4888-bed2-de42d69cc6aa",
+              "leftValue": "={{ $json['Follow-up Status'] }}",
+              "rightValue": "Pending",
+              "operator": {
+                "type": "string",
+                "operation": "equals"
+              }
+            },
+            {
+              "id": "39a03305-39dd-457c-a95d-e20eae5ab2da",
+              "leftValue": "={{ $json.Date }}",
+              "rightValue": "={{ DateTime.now().minus({ days: 7 }).toISODate() }}",
+              "operator": {
+                "type": "dateTime",
+                "operation": "beforeOrEquals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.filter",
+      "typeVersion": 2.3,
+      "position": [
+        -192,
+        2960
+      ],
+      "id": "349f7c2d-fd0a-4577-bb66-cd4d8b4fd225",
+      "name": "Filter1"
+    },
+    {
+      "parameters": {
+        "sendTo": "moathhazeem661@gmail.com",
+        "subject": "={{ $json.Decision }}",
+        "message": "=<!DOCTYPE html> <html lang=\"ar\" dir=\"rtl\"> <head>     <meta charset=\"UTF-8\">     <meta name=\"viewport\" content=\"width=device-width, initial-scale=1.0\">     <title>متابعة القرار الذكي</title> </head> <body style=\"margin: 0; padding: 0; background-color: #f4f6f9; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; -webkit-font-smoothing: antialiased;\">     <table width=\"100%\" border=\"0\" cellspacing=\"0\" cellpadding=\"0\" style=\"background-color: #f4f6f9; padding: 20px 0;\">         <tr>             <td align=\"center\">                 <!-- الحاوية الرئيسية للإيميل -->                 <table width=\"100%\" id=\"email-container\" style=\"max-width: 600px; background-color: #ffffff; border-radius: 12px; overflow: hidden; box-shadow: 0 4px 12px rgba(0,0,0,0.05); border: 1px solid #eef2f5;\">                                          <!-- الهيدر (المقدمة) -->                     <tr>                         <td style=\"background: linear-gradient(135deg, #1e3c72 0%, #2a5298 100%); padding: 30px 20px; text-align: center;\">                             <h1 style=\"color: #ffffff; margin: 0; font-size: 22px; font-weight: 600; letter-spacing: 0.5px;\">🎯 نظام دعم اتخاذ القرار (ADSS)</h1>                             <p style=\"color: #e0e6ed; margin: 5px 0 0 0; font-size: 14px;\">متابعة وتقييم أثر القرارات الاستراتيجية</p>                         </td>                     </tr>                      <!-- محتوى الإيميل -->                     <tr>                         <td style=\"padding: 30px 25px;\">                             <p style=\"font-size: 16px; color: #333333; line-height: 1.6; margin-top: 0;\">                                 مرحباً **معاذ**،                              </p>                             <p style=\"font-size: 15px; color: #555555; line-height: 1.6;\">                                 لقد مرّت فترة زمنية منذ أن اتخذت القرار التالي، وحان الوقت الآن لتقييم أثره الفعلي لتعزيز ذكاء النظام:                             </p>                              <!-- صندوق عرض القرار الخاص بـ n8n -->                             <div style=\"background-color: #f8fafc; border-right: 4px solid #2a5298; padding: 15px 20px; margin: 20px 0; border-radius: 4px 8px 8px 4px;\">                                 <span style=\"font-size: 12px; color: #718096; font-weight: bold; display: block; margin-bottom: 5px; text-transform: uppercase;\">نص القرار الحالي:</span>                                 <p style=\"font-size: 16px; color: #1a202c; font-weight: 600; margin: 0; line-height: 1.5;\">                                     {{ $json.Decision }}                                 </p>                             </div>                              <p style=\"font-size: 15px; color: #555555; line-height: 1.6;\">                                 كيف تقيم نجاح هذا القرار الآن على مقياس من **1 إلى 10**؟                             </p>                              <!-- خط حافة تفصيلي -->                             <hr style=\"border: 0; border-top: 1px solid #e2e8f0; margin: 25px 0;\">                              <!-- صندوق طريقة الرد الذكية -->                             <div style=\"background-color: #fffaf0; border: 1px dashed #dd6b20; border-radius: 8px; padding: 15px 20px;\">                                 <h4 style=\"color: #dd6b20; margin: 0 0 8px 0; font-size: 14px; font-weight: bold;\">💡 طريقة تحديث النظام تلقائياً:</h4>                                 <p style=\"font-size: 13px; color: #4a5568; margin: 0; line-height: 1.5;\">                                     للرد وتحديث قاعدة البيانات، يرجى نسخ النص التالي وإرساله (عبر التليجرام أو الإيميل) بعد تعديل رقم التقييم النهائي:                                 </p>                                 <div style=\"background-color: #ffffff; border: 1px solid #e2e8f0; padding: 10px; border-radius: 6px; margin-top: 10px; font-family: monospace; font-size: 14px; color: #2d3748; text-align: center; font-weight: bold; letter-spacing: 0.5px;\">                                     تحديث القرار رقم {{ $json.ID }} والتقييم 8                                 </div>                             </div>                         </td>                     </tr>                      <!-- الفوتر (التذييل) -->                     <tr>                         <td style=\"background-color: #f8fafc; padding: 15px 20px; text-align: center; border-top: 1px solid #eef2f5;\">                             <p style=\"margin: 0; font-size: 12px; color: #a0aec0;\">                                 هذا الإيميل تم إنشاؤه تلقائياً بواسطة نظام الأتمتة الذكي الخاص بك عبر n8n.                             </p>                         </td>                     </tr>                  </table>             </td>         </tr>     </table> </body> </html>",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.2,
+      "position": [
+        16,
+        2960
+      ],
+      "id": "8c4b2232-ad7f-4b7b-9bef-d54b2eb3ef95",
+      "name": "Send a message6",
+      "webhookId": "239cec09-37b6-42cb-851e-81f22af67714",
+      "credentials": {
+        "gmailOAuth2": {
+          "id": "9NcBOjKo4wAbWWGE",
+          "name": "Gmail account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "update",
+        "documentId": {
+          "__rl": true,
+          "value": "1PxNA1-3gD350MTcTtqd5uViJ8SO0uX-WwnIigjleUZw",
+          "mode": "list",
+          "cachedResultName": "Automated Decision Support System",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1PxNA1-3gD350MTcTtqd5uViJ8SO0uX-WwnIigjleUZw/edit?usp=drivesdk"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": 1342687997,
+          "mode": "list",
+          "cachedResultName": "Proactive Follow-up",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1PxNA1-3gD350MTcTtqd5uViJ8SO0uX-WwnIigjleUZw/edit#gid=1342687997"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "Decision": "={{ $('Filter1').item.json.Decision }}",
+            "Follow-up Status": "Reminded"
+          },
+          "matchingColumns": [
+            "Decision"
+          ],
+          "schema": [
+            {
+              "id": "ID",
+              "displayName": "ID",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": true
+            },
+            {
+              "id": "Decision",
+              "displayName": "Decision",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "Date",
+              "displayName": "Date",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": true
+            },
+            {
+              "id": "Follow-up Status",
+              "displayName": "Follow-up Status",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Success Rate",
+              "displayName": "Success Rate",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": true
+            },
+            {
+              "id": "row_number",
+              "displayName": "row_number",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "number",
+              "canBeUsedToMatch": true,
+              "readOnly": true,
+              "removed": true
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        224,
+        2960
+      ],
+      "id": "2f6e6317-6b0c-4ea8-b4af-44fbb0db5cac",
+      "name": "Update row in sheet2",
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "qPcYFvcEFGVnuJDH",
+          "name": "Google Sheets account 2"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "update",
+        "documentId": {
+          "__rl": true,
+          "value": "1PxNA1-3gD350MTcTtqd5uViJ8SO0uX-WwnIigjleUZw",
+          "mode": "list",
+          "cachedResultName": "Automated Decision Support System",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1PxNA1-3gD350MTcTtqd5uViJ8SO0uX-WwnIigjleUZw/edit?usp=drivesdk"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": 1342687997,
+          "mode": "list",
+          "cachedResultName": "Proactive Follow-up",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1PxNA1-3gD350MTcTtqd5uViJ8SO0uX-WwnIigjleUZw/edit#gid=1342687997"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "ID": "={{ $json.decision_id }}",
+            "Success Rate": "={{ $json.success_rate }}",
+            "Follow-up Status": "Completed"
+          },
+          "matchingColumns": [
+            "ID"
+          ],
+          "schema": [
+            {
+              "id": "ID",
+              "displayName": "ID",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "Decision",
+              "displayName": "Decision",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": true
+            },
+            {
+              "id": "Date",
+              "displayName": "Date",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": true
+            },
+            {
+              "id": "Follow-up Status",
+              "displayName": "Follow-up Status",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Success Rate",
+              "displayName": "Success Rate",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "row_number",
+              "displayName": "row_number",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "number",
+              "canBeUsedToMatch": true,
+              "readOnly": true,
+              "removed": true
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        880,
+        1664
+      ],
+      "id": "ab1a2d4d-0d11-49fc-a229-a003e7d69eba",
+      "name": "Update row in sheet5",
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "qPcYFvcEFGVnuJDH",
+          "name": "Google Sheets account 2"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "sendTo": "moathhazeem661@gmail.com",
+        "subject": "=تحديث قرار رقم  {{ $('Switch1').item.json.decision_id }}",
+        "message": "=<!DOCTYPE html> <html lang=\"ar\" dir=\"rtl\"> <head>     <meta charset=\"UTF-8\">     <meta name=\"viewport\" content=\"width=device-width, initial-scale=1.0\">     <title>تم تحديث القرار بنجاح</title> </head> <body style=\"margin: 0; padding: 0; background-color: #f4f6f9; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; -webkit-font-smoothing: antialiased;\">     <table width=\"100%\" border=\"0\" cellspacing=\"0\" cellpadding=\"0\" style=\"background-color: #f4f6f9; padding: 20px 0;\">         <tr>             <td align=\"center\">                 <table width=\"100%\" style=\"max-width: 550px; background-color: #ffffff; border-radius: 12px; overflow: hidden; box-shadow: 0 4px 12px rgba(0,0,0,0.03); border: 1px solid #eef2f5;\">                                          <tr>                         <td style=\"background: linear-gradient(135deg, #11998e 0%, #38ef7d 100%); padding: 25px 20px; text-align: center;\">                             <div style=\"background-color: rgba(255, 255, 255, 0.2); width: 50px; height: 50px; border-radius: 50%; margin: 0 auto 10px auto; text-align: center;\">                                 <span style=\"color: #ffffff; font-size: 28px; line-height: 50px; font-weight: bold;\">✓</span>                             </div>                             <h1 style=\"color: #ffffff; margin: 0; font-size: 20px; font-weight: 600;\">تم تحديث حالة القرار</h1>                         </td>                     </tr>                      <tr>                         <td style=\"padding: 30px 25px; text-align: right;\">                             <p style=\"font-size: 16px; color: #2d3748; margin-top: 0; line-height: 1.6;\">                                 مرحباً **معاذ**،                             </p>                             <p style=\"font-size: 15px; color: #4a5568; line-height: 1.6; margin-bottom: 25px;\">                                 لقد استقبل النظام ردك المرتد بنجاح، وتم إغلاق حلقة التقييم (Feedback Loop) للقرار المحدد في قاعدة البيانات:                             </p>                              <table width=\"100%\" border=\"0\" cellspacing=\"0\" cellpadding=\"0\" style=\"background-color: #f8fafc; border-radius: 8px; border: 1px solid #edf2f7; margin-bottom: 25px;\">                                 <tr>                                     <td style=\"padding: 15px 20px;\">                                         <table width=\"100%\" border=\"0\" cellspacing=\"0\" cellpadding=\"0\">                                             <tr>                                                 <td style=\"padding-bottom: 8px; font-size: 14px; color: #718096;\">رقم القرار (ID):</td>                                                 <td style=\"padding-bottom: 8px; font-size: 15px; color: #1a202c; font-weight: bold; text-align: left;\"> {{ $json.ID }}</td>                                             </tr>                                             <tr>                                                 <td style=\"padding-bottom: 8px; font-size: 14px; color: #718096;\">تقييم النجاح المسجل:</td>                                                 <td style=\"padding-bottom: 8px; font-size: 15px; color: #38ef7d; font-weight: bold; text-align: left; direction: ltr;\"> {{ $json['Success Rate'] }} / 10</td>                                             </tr>                                             <tr>                                                 <td style=\"font-size: 14px; color: #718096;\">حالة المتابعة الجديدة:</td>                                                 <td style=\"font-size: 13px; color: #2b6cb0; font-weight: bold; text-align: left;\"><span style=\"background-color: #ebf8ff; color: #2b6cb0; padding: 2px 8px; border-radius: 4px;\">Completed</span></td>                                             </tr>                                         </table>                                     </td>                                 </tr>                             </table>                              <p style=\"font-size: 14px; color: #718096; line-height: 1.5; margin: 0; background-color: #f0fff4; border-right: 3px solid #38ef7d; padding: 10px 15px; border-radius: 0 6px 6px 0;\">                                 💡 ملاحظة: تم الآن إدخال هذه التجربة الفعلية في الذاكرة طويلة المدى للـ AI Agent، ليتعلم منها تلقائياً في قراراتك المستقبلية القادمة.                             </p>                         </td>                     </tr>                      <tr>                         <td style=\"background-color: #fafbfc; padding: 15px 20px; text-align: center; border-top: 1px solid #edf2f7;\">                             <p style=\"margin: 0; font-size: 12px; color: #a0aec0;\">                                 نود التحديث التلقائي • نظام ADSS الذكي عبر n8n                             </p>                         </td>                     </tr>                  </table>             </td>         </tr>     </table> </body> </html>",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.2,
+      "position": [
+        1088,
+        1664
+      ],
+      "id": "30e6d061-72cd-4670-bf10-53625d8bc4f0",
+      "name": "Send a message7",
+      "webhookId": "2e31385b-1677-4c1c-87b1-f13a74a3c1c1",
+      "credentials": {
+        "gmailOAuth2": {
+          "id": "9NcBOjKo4wAbWWGE",
+          "name": "Gmail account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "append",
+        "documentId": {
+          "__rl": true,
+          "value": "1PxNA1-3gD350MTcTtqd5uViJ8SO0uX-WwnIigjleUZw",
+          "mode": "list",
+          "cachedResultName": "Automated Decision Support System",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1PxNA1-3gD350MTcTtqd5uViJ8SO0uX-WwnIigjleUZw/edit?usp=drivesdk"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": 1896355506,
+          "mode": "list",
+          "cachedResultName": "Scenario & Risk Analysis",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1PxNA1-3gD350MTcTtqd5uViJ8SO0uX-WwnIigjleUZw/edit#gid=1896355506"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "ID": "={{ $json.id }}",
+            "Decision": "={{ $json.decision }}",
+            "Best-Case Scenario": "={{ $json.best_case }}",
+            "Worst-Case Scenario": "={{ $json.worst_case }}",
+            "Mitigation Plan": "={{ $json.mitigation_plan }}"
+          },
+          "matchingColumns": [],
+          "schema": [
+            {
+              "id": "ID",
+              "displayName": "ID",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Decision",
+              "displayName": "Decision",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Best-Case Scenario",
+              "displayName": "Best-Case Scenario",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Worst-Case Scenario",
+              "displayName": "Worst-Case Scenario",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Mitigation Plan",
+              "displayName": "Mitigation Plan",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        896,
+        912
+      ],
+      "id": "9564390a-16f7-4e52-933e-996387d2c401",
+      "name": "Append row in sheet",
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "qPcYFvcEFGVnuJDH",
+          "name": "Google Sheets account 2"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "sendTo": "Moathhazeem661@gmail.com",
+        "subject": "={{ $json.Decision }}",
+        "message": "=<h3 style=\"color: #1f4068; margin-top: 25px; margin-bottom: 15px; font-size: 17px; border-right: 4px solid #1f4068; padding-right: 10px;\">📊 نتائج محاكاة السيناريوهات وإدارة المخاطر:</h3>\n\n<div style=\"background-color: #f0fff4; border: 1px solid #c6f6d5; border-radius: 6px; padding: 15px; margin-bottom: 15px;\">\n    <h4 style=\"color: #22543d; margin: 0 0 5px 0; font-size: 14px;\">🟢 أفضل سيناريو محتمل (Best-Case):</h4>\n    <p style=\"font-size: 14px; color: #2d3748; margin: 0; line-height: 1.6;\">{{ $json['Best-Case Scenario'] }}</p>\n</div>\n\n<div style=\"background-color: #fff5f5; border: 1px solid #fed7d7; border-radius: 6px; padding: 15px; margin-bottom: 15px;\">\n    <h4 style=\"color: #742a2a; margin: 0 0 5px 0; font-size: 14px;\">🔴 أسوأ سيناريو محتمل (Worst-Case):</h4>\n    <p style=\"font-size: 14px; color: #2d3748; margin: 0; line-height: 1.6;\">{{ $json['Worst-Case Scenario'] }}</p>\n</div>\n\n<div style=\"background-color: #ebf8ff; border: 1px solid #bee3f8; border-radius: 6px; padding: 15px; margin-bottom: 15px;\">\n    <h4 style=\"color: #2a4365; margin: 0 0 5px 0; font-size: 14px;\">🛡️ خطة الطوارئ المقترحة (Mitigation Plan):</h4>\n    <p style=\"font-size: 14px; color: #2d3748; margin: 0; line-height: 1.6;\">{{ $json['Mitigation Plan'] }}</p>\n</div>",
+        "options": {
+          "appendAttribution": false
+        }
+      },
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.2,
+      "position": [
+        1120,
+        912
+      ],
+      "id": "8d441d12-eb3e-404f-a4c1-561af968fdae",
+      "name": "Send a message11",
+      "webhookId": "8cf22288-c594-4ad9-bfcc-07532301d363",
+      "credentials": {
+        "gmailOAuth2": {
+          "id": "9NcBOjKo4wAbWWGE",
+          "name": "Gmail account"
         }
       }
     }
@@ -1787,7 +2761,19 @@
       "main": [
         [
           {
+            "node": "Update row in sheet1",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
             "node": "Append or update row in sheet",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Append row in sheet",
             "type": "main",
             "index": 0
           }
@@ -1802,6 +2788,13 @@
         [
           {
             "node": "Get row(s) in sheet6",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Update row in sheet5",
             "type": "main",
             "index": 0
           }
@@ -1954,7 +2947,7 @@
       "main": [
         [
           {
-            "node": "Basic LLM Chain1",
+            "node": "Filter",
             "type": "main",
             "index": 0
           }
@@ -2014,12 +3007,24 @@
     },
     "Send a message4": {
       "main": [
-        []
+        [
+          {
+            "node": "Update row in sheet3",
+            "type": "main",
+            "index": 0
+          }
+        ]
       ]
     },
     "Send a message5": {
       "main": [
-        []
+        [
+          {
+            "node": "Update row in sheet4",
+            "type": "main",
+            "index": 0
+          }
+        ]
       ]
     },
     "HTTP Request": {
@@ -2044,14 +3049,97 @@
         ]
       ]
     },
-    "PDFBolt1": {
+    "Filter": {
+      "main": [
+        [
+          {
+            "node": "Basic LLM Chain1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Search in Tavily": {
+      "ai_tool": [
+        [
+          {
+            "node": "AI main",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Schedule Trigger": {
+      "main": [
+        [
+          {
+            "node": "Get row(s) in sheet",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get row(s) in sheet": {
+      "main": [
+        [
+          {
+            "node": "Filter1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Filter1": {
+      "main": [
+        [
+          {
+            "node": "Send a message6",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Send a message6": {
+      "main": [
+        [
+          {
+            "node": "Update row in sheet2",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Send a message10": {
       "main": [
         []
       ]
     },
-    "PDFBolt": {
+    "Update row in sheet5": {
       "main": [
-        []
+        [
+          {
+            "node": "Send a message7",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Append row in sheet": {
+      "main": [
+        [
+          {
+            "node": "Send a message11",
+            "type": "main",
+            "index": 0
+          }
+        ]
       ]
     }
   },
@@ -2060,7 +3148,7 @@
     "executionOrder": "v1",
     "binaryMode": "separate"
   },
-  "versionId": "5c134af0-8b50-4483-bb34-db5fed20d3ca",
+  "versionId": "e66f7733-87ac-4b38-a88d-cd4166078ce7",
   "meta": {
     "templateCredsSetupCompleted": true,
     "instanceId": "312b8e1c27ba1ae94b15ee40f5b475cef18128657bfd8917a13927efa9db76b9"
