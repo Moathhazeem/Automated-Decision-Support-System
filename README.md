@@ -1,8 +1,3 @@
----
-
-### 3. مشروع Automated-Decision-Support-System
-
-```markdown
 # 🤖 Automated Decision Support System
 
 An intelligent AI-powered decision support system built using n8n workflow automation to analyze, classify, and record decision parameters.
